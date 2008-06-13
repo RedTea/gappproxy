@@ -21,7 +21,15 @@ import urlparse
 import StringIO
 import logging
 from google.appengine.ext import webapp
+from google.appengine.ext import db
 from google.appengine.api import urlfetch
+
+
+class AccessLog(db.Model):
+    srcIP = db.StringProperty(required=True)
+    url = db.StringProperty(required=True)
+    successedCount = db.IntegerProperty()
+    failedCount = db.IntegerProperty()
 
 
 class MainHandler(webapp.RequestHandler):
@@ -37,6 +45,37 @@ class MainHandler(webapp.RequestHandler):
         self.response.out.write('Server: %s\r\n' % self.Software)
         self.response.out.write('\r\n')
 
+    def log(self, srcIP, url, successed=True):
+        # simplify url, only host is logged
+        urlp = urlparse.urlparse(url)
+        url = urlp[1]
+        # search
+        res = db.GqlQuery('SELECT * FROM AccessLog WHERE srcIP=:1 and url=:2', 
+                          srcIP, url)
+        nr = 0
+        for re in res:
+            nr += 1
+        if nr == 0:
+            # need create
+            if successed:
+                re = AccessLog(srcIP=srcIP, url=url, successedCount=1, 
+                               failedCount=0)
+            else:
+                re = AccessLog(srcIP=srcIP, url=url, successedCount=0, 
+                               failedCount=1)
+            re.put()
+            return
+        elif nr == 1:
+            # need update
+            if successed:
+                re.successedCount += 1
+            else:
+                re.failedCount += 1
+            re.put()
+            return
+        # error
+        logging.error('What?!')
+
     def post(self):
         try:
             # get post data
@@ -50,6 +89,7 @@ class MainHandler(webapp.RequestHandler):
                and origMethod != 'POST':
                 # forbid
                 self.myerror(403)
+                self.log(self.request.remote_addr, origPath, False)
                 return
             if origMethod == 'GET':
                 method = urlfetch.GET
@@ -62,6 +102,7 @@ class MainHandler(webapp.RequestHandler):
             scm, netloc, path, params, query, frag = urlparse.urlparse(origPath)
             if scm != 'http' or not netloc:
                 self.myerror(403)
+                self.log(self.request.remote_addr, origPath, False)
                 return
             # create new path
             newPath = urlparse.urlunparse((scm, netloc, path, params, query, ''))
@@ -92,15 +133,18 @@ class MainHandler(webapp.RequestHandler):
             if contentLength != 0:
                 if contentLength != len(origPostData):
                     self.myerror(403)
+                    self.log(self.request.remote_addr, origPath, False)
                     return
             else:
                 origPostData = ''
 
             if origPostData != '' and origMethod != 'POST':
                 self.myerror(403)
+                self.log(self.request.remote_addr, origPath, False)
                 return
         except Exception:
             self.myerror(403)
+            self.log(self.request.remote_addr, origPath, False)
             return
 
         # fetch
@@ -108,6 +152,7 @@ class MainHandler(webapp.RequestHandler):
             resp = urlfetch.fetch(newPath, origPostData, method, newHeaders)
         except Exception, e:
             self.myerror(500)
+            self.log(self.request.remote_addr, origPath, False)
             return
 
         # forward
@@ -131,6 +176,8 @@ class MainHandler(webapp.RequestHandler):
             self.response.out.write('%s: %s\r\n' % (header, resp.headers[header]))
         self.response.out.write('\r\n')
         self.response.out.write(resp.content)
+        # log it
+        self.log(self.request.remote_addr, newPath, True)
 
 
 def main():
