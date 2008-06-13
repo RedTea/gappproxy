@@ -20,6 +20,7 @@ import wsgiref.handlers
 import urlparse
 import StringIO
 import logging
+import base64
 from google.appengine.ext import webapp
 from google.appengine.ext import db
 from google.appengine.api import urlfetch
@@ -82,6 +83,7 @@ class MainHandler(webapp.RequestHandler):
             origMethod = self.request.get('method')
             origPath = self.request.get('path')
             origHeaders = self.request.get('headers')
+            encodeResponse = self.request.get('encodeResponse')
             origPostData = self.request.get('postdata')
 
             # check method
@@ -175,7 +177,11 @@ class MainHandler(webapp.RequestHandler):
             # other
             self.response.out.write('%s: %s\r\n' % (header, resp.headers[header]))
         self.response.out.write('\r\n')
-        self.response.out.write(resp.content)
+        # need encode?
+        if encodeResponse == 'base64':
+            self.response.out.write(base64.b64encode(resp.content))
+        else:
+            self.response.out.write(resp.content)
         # log it
         self.log(self.request.remote_addr, newPath, True)
 
