@@ -21,14 +21,20 @@ import urlparse
 import StringIO
 import logging
 import base64
+import zlib
 from google.appengine.ext import webapp
 from google.appengine.ext import db
 from google.appengine.api import urlfetch
 
 
-class AccessLog(db.Model):
-    srcIP = db.StringProperty(required=True)
-    url = db.StringProperty(required=True)
+class FetchFromIP(db.Model):
+    fromIP = db.StringProperty(required=True)
+    successedCount = db.IntegerProperty()
+    failedCount = db.IntegerProperty()
+
+
+class FetchDestHost(db.Model):
+    destHost = db.StringProperty(required=True)
     successedCount = db.IntegerProperty()
     failedCount = db.IntegerProperty()
 
@@ -47,25 +53,19 @@ class MainHandler(webapp.RequestHandler):
         self.response.out.write('\r\n')
 
     def log(self, srcIP, url, successed=True):
-        # simplify url, only host is logged
-        urlp = urlparse.urlparse(url)
-        url = urlp[1]
+        # for FetchFromIP
         # search
-        res = db.GqlQuery('SELECT * FROM AccessLog WHERE srcIP=:1 and url=:2', 
-                          srcIP, url)
+        res = db.GqlQuery('SELECT * FROM FetchFromIP WHERE fromIP=:1', srcIP)
         nr = 0
         for re in res:
             nr += 1
         if nr == 0:
             # need create
             if successed:
-                re = AccessLog(srcIP=srcIP, url=url, successedCount=1, 
-                               failedCount=0)
+                re = FetchFromIP(fromIP=srcIP, successedCount=1, failedCount=0)
             else:
-                re = AccessLog(srcIP=srcIP, url=url, successedCount=0, 
-                               failedCount=1)
+                re = FetchFromIP(fromIP=srcIP, successedCount=0, failedCount=1)
             re.put()
-            return
         elif nr == 1:
             # need update
             if successed:
@@ -73,9 +73,36 @@ class MainHandler(webapp.RequestHandler):
             else:
                 re.failedCount += 1
             re.put()
-            return
-        # error
-        logging.error('What?!')
+        else:
+            # error
+            logging.error('What?FromIP!')
+
+        # for FetchDestHost
+        # simplify url, only host is logged
+        urlp = urlparse.urlparse(url)
+        host = urlp[1]
+        # search
+        res = db.GqlQuery('SELECT * FROM FetchDestHost WHERE destHost=:1', host)
+        nr = 0
+        for re in res:
+            nr += 1
+        if nr == 0:
+            # need create
+            if successed:
+                re = FetchDestHost(destHost=host, successedCount=1, failedCount=0)
+            else:
+                re = FetchDestHost(destHost=host, successedCount=0, failedCount=1)
+            re.put()
+        elif nr == 1:
+            # need update
+            if successed:
+                re.successedCount += 1
+            else:
+                re.failedCount += 1
+            re.put()
+        else:
+            # error
+            logging.error('What?Host!')
 
     def post(self):
         try:
@@ -163,6 +190,8 @@ class MainHandler(webapp.RequestHandler):
         self.response.out.write('HTTP/1.1 %d %s\r\n' % (resp.status_code, \
                                 self.response.http_status_message(resp.status_code)))
         # headers
+        # default Content-Type is text
+        textContent = True
         for header in resp.headers:
             if header.strip().lower() in self.HtohHdrs:
                 # don't forward
@@ -176,10 +205,21 @@ class MainHandler(webapp.RequestHandler):
                 continue
             # other
             self.response.out.write('%s: %s\r\n' % (header, resp.headers[header]))
+            # check Content-Type
+            if header.lower() == 'content-type':
+                if resp.headers[header].lower().find('text') == -1:
+                    # not text
+                    textContent = False
         self.response.out.write('\r\n')
         # need encode?
         if encodeResponse == 'base64':
             self.response.out.write(base64.b64encode(resp.content))
+        elif encodeResponse == 'compress':
+            # only compress when Content-Type is text/xxx
+            if textContent:
+                self.response.out.write(zlib.compress(resp.content))
+            else:
+                self.response.out.write(resp.content)
         else:
             self.response.out.write(resp.content)
         # log it

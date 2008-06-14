@@ -21,7 +21,7 @@ import SocketServer
 import urllib
 import urllib2
 import urlparse
-import base64
+import zlib
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
@@ -72,7 +72,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         params = urllib.urlencode({'method': method, 
                                    'path': path, 
                                    'headers': self.headers, 
-                                   'encodeResponse': 'base64', 
+                                   'encodeResponse': 'compress', 
                                    'postdata': postData})
         # accept-encoding: identity, *;q=0
         # connection: close
@@ -83,6 +83,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         resp = urllib2.urlopen(request, params)
 
         # parse resp
+        textContent = True
         # for status line
         line = resp.readline()
         status = int(line.split()[1])
@@ -99,9 +100,17 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             name = name.strip()
             value = value.strip()
             self.send_header(name, value)
+            # check Content-Type
+            if name.lower() == 'content-type':
+                if value.lower().find('text') == -1:
+                    # not text
+                    textContent = False
         self.end_headers()
         # for page
-        self.wfile.write(base64.b64decode(resp.read()))
+        if textContent:
+            self.wfile.write(zlib.decompress(resp.read()))
+        else:
+            self.wfile.write(resp.read())
         self.connection.close()
         #print 'do_METHOD END!'
     
