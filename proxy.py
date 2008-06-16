@@ -80,6 +80,11 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         request = urllib2.Request('http://dgang.appspot.com/fetch.py')
         request.add_header('Accept-Encoding', 'identity, *;q=0')
         request.add_header('Connection', 'close')
+        # create new opener
+        proxy_handler = urllib2.ProxyHandler({})
+        opener = urllib2.build_opener(proxy_handler)
+        # set the opener as the default opener
+        urllib2.install_opener(opener)
         resp = urllib2.urlopen(request, params)
 
         # parse resp

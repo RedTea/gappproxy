@@ -33,12 +33,6 @@ class FetchFromIP(db.Model):
     failedCount = db.IntegerProperty()
 
 
-class FetchDestHost(db.Model):
-    destHost = db.StringProperty(required=True)
-    successedCount = db.IntegerProperty()
-    failedCount = db.IntegerProperty()
-
-
 class MainHandler(webapp.RequestHandler):
     Software = 'GAppProxy/0.0.1'
     # hop to hop header should not be forwarded
@@ -76,33 +70,6 @@ class MainHandler(webapp.RequestHandler):
         else:
             # error
             logging.error('What?FromIP!')
-
-        # for FetchDestHost
-        # simplify url, only host is logged
-        urlp = urlparse.urlparse(url)
-        host = urlp[1]
-        # search
-        res = db.GqlQuery('SELECT * FROM FetchDestHost WHERE destHost=:1', host)
-        nr = 0
-        for re in res:
-            nr += 1
-        if nr == 0:
-            # need create
-            if successed:
-                re = FetchDestHost(destHost=host, successedCount=1, failedCount=0)
-            else:
-                re = FetchDestHost(destHost=host, successedCount=0, failedCount=1)
-            re.put()
-        elif nr == 1:
-            # need update
-            if successed:
-                re.successedCount += 1
-            else:
-                re.failedCount += 1
-            re.put()
-        else:
-            # error
-            logging.error('What?Host!')
 
     def post(self):
         try:
