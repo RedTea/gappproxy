@@ -96,7 +96,7 @@ class MainHandler(webapp.RequestHandler):
 
             # check path
             scm, netloc, path, params, query, frag = urlparse.urlparse(origPath)
-            if scm != 'http' or not netloc:
+            if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
                 self.myerror(403)
                 self.log(self.request.remote_addr, origPath, False)
                 return

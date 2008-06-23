@@ -22,9 +22,104 @@ import urllib
 import urllib2
 import urlparse
 import zlib
+import sys
+import socket
+try:
+    import ssl
+except:
+    pass
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
+
+    def do_CONNECT(self):
+        # for ssl proxy
+        httpsHost, sep, httpsPort = self.path.partition(':')
+        if httpsPort != '' and httpsPort != '443':
+            # unsupport
+            self.wfile.write('HTTP/1.1 403 OK\r\n')
+            self.wfile.write('\r\n')
+            self.connection.close()
+            return
+
+        # continue
+        self.wfile.write('HTTP/1.1 200 OK\r\n')
+        self.wfile.write('\r\n')
+        sslSock = ssl.SSLSocket(self.connection, 
+                                server_side=True, 
+                                certfile='./LocalProxyServer.cert', 
+                                keyfile='./LocalProxyServer.key')
+
+        # rewrite request line, url to abs
+        firstLine = ''
+        while True:
+            chr = sslSock.read(1)
+            # EOF?
+            if chr == '':
+                # bad request
+                sslSock.close()
+                self.connection.close()
+                return
+            # newline(\r\n)?
+            if chr == '\r':
+                chr = sslSock.read(1)
+                if chr == '\n':
+                    # got
+                    break
+                else:
+                    # bad request
+                    sslSock.close()
+                    self.connection.close()
+                    return
+            # newline(\n)?
+            if chr == '\n':
+                # got
+                break
+            firstLine += chr
+
+        # get path
+        method, path, ver = firstLine.split()
+        if path.startswith('/'):
+            path = 'https://%s' % httpsHost + path
+
+        # connect to local proxy server
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(('127.0.0.1', 8000))
+        sock.send('%s %s %s\r\n' % (method, path, ver))
+
+        # forward https request
+        sslSock.settimeout(1)
+        while True:
+            try:
+                data = sslSock.read(8192)
+            except ssl.SSLError, e:
+                if str(e).lower().find('timed out') == -1:
+                    # error
+                    sslSock.close()
+                    self.connection.close()
+                    return
+                # timeout
+                break
+            if data != '':
+                sock.send(data)
+            else:
+                # EOF
+                break
+        sslSock.setblocking(True)
+
+        # simply forward response
+        while True:
+            data = sock.recv(8192)
+            if data != '':
+                sslSock.write(data)
+            else:
+                # EOF
+                break
+
+        # clean
+        sock.close()
+        sslSock.shutdown(socket.SHUT_WR)
+        self.connection.close()
     
     def do_METHOD(self):
         #print 'do_METHOD BEGIN!'
@@ -61,7 +156,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # do path check
         scm, netloc, path, params, query, frag = urlparse.urlparse(self.path)
-        if scm != 'http' or not netloc:
+        if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
             self.send_error(400)
             self.connection.close()
             return
@@ -113,7 +208,9 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.end_headers()
         # for page
         if textContent:
-            self.wfile.write(zlib.decompress(resp.read()))
+            dat = resp.read()
+            if len(dat) > 0:
+                self.wfile.write(zlib.decompress(dat))
         else:
             self.wfile.write(resp.read())
         self.connection.close()
@@ -129,6 +226,18 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn,
     pass
 
 
+def checkVersion():
+    (major, minor, _, _, _) = sys.version_info
+    if major < 2:
+        return False
+    if major == 2 and minor < 6:
+        return False
+    return True
+
+
 if __name__ == '__main__':
-    httpd = ThreadingHTTPServer(('127.0.0.1', 8000), LocalProxyHandler)
-    httpd.serve_forever()
+    if checkVersion():
+        httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
+        httpd.serve_forever()
+    else:
+        print 'Error: this script needs Python 2.6 or later.'

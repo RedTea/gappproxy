@@ -1,0 +1,69 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 1 (0x1)
+        Signature Algorithm: sha1WithRSAEncryption
+        Issuer: C=CN, O=GAppProxy, CN=CA
+        Validity
+            Not Before: Jun 22 07:26:03 2008 GMT
+            Not After : Jun 22 07:26:03 2011 GMT
+        Subject: C=CN, O=GAppProxy, OU=TEST, CN=LocalProxyServer
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (1024 bit)
+                Modulus (1024 bit):
+                    00:db:1e:ce:a8:50:d9:88:06:50:f5:e0:46:61:34:
+                    1b:3d:8f:e0:b3:91:6a:d4:a0:72:3b:54:00:27:37:
+                    15:c5:97:a2:84:13:50:4c:15:9b:d5:c4:d7:70:ce:
+                    1a:0c:b1:55:c9:8d:a6:17:ff:11:4d:12:66:6f:fc:
+                    3a:a2:05:30:f6:60:29:e4:b8:47:a2:17:c2:0b:ad:
+                    be:c7:88:3b:ad:c7:2c:e4:b9:17:09:6e:e9:de:c8:
+                    db:32:c8:85:73:57:1a:a2:e1:a6:e7:fb:7f:33:97:
+                    ea:a8:23:9c:1e:ee:0f:3c:7a:5f:95:65:f3:d7:fa:
+                    ce:7d:d0:27:6a:9e:50:02:21
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Basic Constraints: 
+                CA:FALSE
+            X509v3 Subject Key Identifier: 
+                60:B0:BC:68:9D:BC:71:47:EA:87:F0:DC:B6:6F:30:31:0A:86:11:37
+            X509v3 Authority Key Identifier: 
+                keyid:B3:5D:CE:BB:E7:AB:5E:16:FF:A5:1A:C6:3A:D8:6B:4F:54:45:C6:C7
+                DirName:/C=CN/O=GAppProxy/CN=CA
+                serial:92:2F:53:1C:AE:F7:F4:85
+
+    Signature Algorithm: sha1WithRSAEncryption
+        2e:ad:2d:e3:2c:07:c8:54:9e:b4:08:ca:a7:41:8e:20:ab:22:
+        6a:29:d6:46:32:46:09:69:52:2f:58:59:95:3f:ac:56:b4:07:
+        fe:c4:42:23:16:7c:f1:30:6d:8d:98:79:40:03:05:86:38:af:
+        53:45:ee:35:7d:b8:de:a4:bd:6c:5c:d8:5f:1a:3f:38:60:f2:
+        06:dd:56:b0:5e:38:99:45:3c:07:d2:c9:52:d6:64:11:97:19:
+        e5:d6:4b:48:c2:83:2a:04:2f:2b:a3:22:5a:8d:c3:51:1a:b9:
+        14:96:2e:cd:19:12:df:1e:ac:9b:0a:12:4a:dd:6c:49:09:66:
+        a1:41:e5:5d:68:6b:c5:4c:45:2c:11:61:51:35:e9:87:12:ac:
+        8a:10:ef:ba:c2:7a:04:72:c3:cf:10:bd:86:80:4c:f5:b6:b8:
+        1d:2f:4a:49:62:a9:29:e5:86:b4:c4:8c:0e:82:f7:11:17:43:
+        dc:4c:3a:0b:58:7d:4e:46:f8:38:96:3f:4b:54:69:4f:78:5e:
+        5a:60:3e:65:86:16:2e:c3:1e:9e:43:2d:8a:a1:4b:c8:66:cd:
+        f4:2f:00:d5:9d:bf:f6:a3:a2:ef:1b:a8:e5:86:c3:c6:72:82:
+        80:91:a0:61:82:1b:b5:cb:04:29:f6:5f:57:9c:c8:2e:01:c6:
+        0a:19:83:32
+-----BEGIN CERTIFICATE-----
+MIIC/jCCAeagAwIBAgIBATANBgkqhkiG9w0BAQUFADAuMQswCQYDVQQGEwJDTjES
+MBAGA1UECgwJR0FwcFByb3h5MQswCQYDVQQDDAJDQTAeFw0wODA2MjIwNzI2MDNa
+Fw0xMTA2MjIwNzI2MDNaMEsxCzAJBgNVBAYTAkNOMRIwEAYDVQQKDAlHQXBwUHJv
+eHkxDTALBgNVBAsMBFRFU1QxGTAXBgNVBAMMEExvY2FsUHJveHlTZXJ2ZXIwgZ8w
+DQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBANsezqhQ2YgGUPXgRmE0Gz2P4LORatSg
+cjtUACc3FcWXooQTUEwVm9XE13DOGgyxVcmNphf/EU0SZm/8OqIFMPZgKeS4R6IX
+wgutvseIO63HLOS5Fwlu6d7I2zLIhXNXGqLhpuf7fzOX6qgjnB7uDzx6X5Vl89f6
+zn3QJ2qeUAIhAgMBAAGjgY0wgYowCQYDVR0TBAIwADAdBgNVHQ4EFgQUYLC8aJ28
+cUfqh/Dctm8wMQqGETcwXgYDVR0jBFcwVYAUs13Ou+erXhb/pRrGOthrT1RFxseh
+MqQwMC4xCzAJBgNVBAYTAkNOMRIwEAYDVQQKDAlHQXBwUHJveHkxCzAJBgNVBAMM
+AkNBggkAki9THK739IUwDQYJKoZIhvcNAQEFBQADggEBAC6tLeMsB8hUnrQIyqdB
+jiCrImop1kYyRglpUi9YWZU/rFa0B/7EQiMWfPEwbY2YeUADBYY4r1NF7jV9uN6k
+vWxc2F8aPzhg8gbdVrBeOJlFPAfSyVLWZBGXGeXWS0jCgyoELyujIlqNw1EauRSW
+Ls0ZEt8erJsKEkrdbEkJZqFB5V1oa8VMRSwRYVE16YcSrIoQ77rCegRyw88QvYaA
+TPW2uB0vSkliqSnlhrTEjA6C9xEXQ9xMOgtYfU5G+DiWP0tUaU94XlpgPmWGFi7D
+Hp5DLYqhS8hmzfQvANWdv/ajou8bqOWGw8ZygoCRoGGCG7XLBCn2X1ecyC4BxgoZ
+gzI=
+-----END CERTIFICATE-----
