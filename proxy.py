@@ -22,22 +22,30 @@ import urllib
 import urllib2
 import urlparse
 import zlib
-import sys
 import socket
 try:
     import ssl
+    SSLEnable = True
 except:
-    pass
+    SSLEnable = False
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
 
     def do_CONNECT(self):
+        if not SSLEnable:
+            # Not Implemented
+            print 'HTTPS is not enabled: HTTPS needs Python 2.6 or later.'
+            self.wfile.write('HTTP/1.1 501 Not Implemented\r\n')
+            self.wfile.write('\r\n')
+            self.connection.close()
+            return
+            
         # for ssl proxy
         httpsHost, sep, httpsPort = self.path.partition(':')
         if httpsPort != '' and httpsPort != '443':
             # unsupport
-            self.wfile.write('HTTP/1.1 403 OK\r\n')
+            self.wfile.write('HTTP/1.1 403 Forbidden\r\n')
             self.wfile.write('\r\n')
             self.connection.close()
             return
@@ -226,18 +234,12 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn,
     pass
 
 
-def checkVersion():
-    (major, minor, _, _, _) = sys.version_info
-    if major < 2:
-        return False
-    if major == 2 and minor < 6:
-        return False
-    return True
-
-
 if __name__ == '__main__':
-    if checkVersion():
-        httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
-        httpd.serve_forever()
+    if SSLEnable:
+        print 'HTTP Enabled : YES'
+        print 'HTTPS Enabled: YES'
     else:
-        print 'Error: this script needs Python 2.6 or later.'
+        print 'HTTP Enabled : YES'
+        print 'HTTPS Enabled: NO'
+    httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
+    httpd.serve_forever()
