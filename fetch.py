@@ -192,6 +192,37 @@ class MainHandler(webapp.RequestHandler):
         # log it
         self.log(self.request.remote_addr, newPath, True)
 
+    def get(self):
+        self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        self.response.out.write( \
+'''
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <title>GAppProxy已经在工作了</title>
+    </head>
+    <body>
+        <table width="800" border="0" align="center">
+            <tr><td align="center"><hr></td></tr>
+            <tr><td align="center">
+                <b><h1>GAppProxy已经在工作了</h1></b>
+            </td></tr>
+            <tr><td align="center"><hr></td></tr>
+
+            <tr><td align="center">
+                GAppProxy是一个开源的HTTP Proxy软件,使用Python编写,运行于Google App Engine平台上. 
+            </td></tr>
+            <tr><td align="center"><hr></td></tr>
+
+            <tr><td align="center">
+                更多相关介绍,请参考<a href="http://code.google.com/p/gappproxy/">GAppProxy项目主页</a>. 
+            </td></tr>
+            <tr><td align="center"><hr></td></tr>
+        </table>
+    </body>
+</html>
+''')
+
 
 def main():
     application = webapp.WSGIApplication([('/fetch.py', MainHandler)], debug=True)
