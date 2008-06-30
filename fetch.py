@@ -47,29 +47,7 @@ class MainHandler(webapp.RequestHandler):
         self.response.out.write('\r\n')
 
     def log(self, srcIP, url, successed=True):
-        # for FetchFromIP
-        # search
-        res = db.GqlQuery('SELECT * FROM FetchFromIP WHERE fromIP=:1', srcIP)
-        nr = 0
-        for re in res:
-            nr += 1
-        if nr == 0:
-            # need create
-            if successed:
-                re = FetchFromIP(fromIP=srcIP, successedCount=1, failedCount=0)
-            else:
-                re = FetchFromIP(fromIP=srcIP, successedCount=0, failedCount=1)
-            re.put()
-        elif nr == 1:
-            # need update
-            if successed:
-                re.successedCount += 1
-            else:
-                re.failedCount += 1
-            re.put()
-        else:
-            # error
-            logging.error('What?FromIP!')
+        pass
 
     def post(self):
         try:
