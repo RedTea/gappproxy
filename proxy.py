@@ -28,8 +28,11 @@ try:
     SSLEnable = True
 except:
     SSLEnable = False
+import random
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+    global localProxy, fetchServer
+
     PostDataLimit = 0x100000
 
     def do_CONNECT(self):
@@ -180,11 +183,14 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # accept-encoding: identity, *;q=0
         # connection: close
         #request = urllib2.Request('http://localhost:8080/fetch.py')
-        request = urllib2.Request('http://dgang.appspot.com/fetch.py')
+        request = urllib2.Request(fetchServer)
         request.add_header('Accept-Encoding', 'identity, *;q=0')
         request.add_header('Connection', 'close')
         # create new opener
-        proxy_handler = urllib2.ProxyHandler({})
+        if localProxy != '':
+            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+        else:
+            proxy_handler = urllib2.ProxyHandler({})
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
@@ -234,12 +240,61 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn,
     pass
 
 
+def parseConf(confFile):
+    global localProxy, fetchServer
+
+    fetchServers = []
+
+    # read config file
+    fp = open(confFile, 'r')
+    while True:
+        line = fp.readline()
+        if line == '':
+            # end
+            break
+        # parse line
+        line = line.strip()
+        if line.startswith('#'):
+            # comments
+            continue
+        (name, sep, value) = line.partition('=')
+        name = name.strip().lower()
+        value = value.strip()
+        if name == 'local_proxy':
+            localProxy = value
+        elif name == 'fetch_server':
+            fetchServers.append(value)
+
+    # check
+    if len(fetchServers) == 0:
+        # no fetch server
+        print 'I cat\'t get any fetch_server from proxy.conf.'
+        return False
+
+    # random select
+    if len(fetchServers) > 1:
+        fetchServer = fetchServers[random.randint(0, len(fetchServers) - 1)]
+    else:
+        fetchServer = fetchServers[0]
+    return True
+
+
 if __name__ == '__main__':
+    global localProxy, fetchServer
+
     if SSLEnable:
+        print '--------------------------------------------'
         print 'HTTP Enabled : YES'
         print 'HTTPS Enabled: YES'
     else:
         print 'HTTP Enabled : YES'
         print 'HTTPS Enabled: NO'
-    httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
-    httpd.serve_forever()
+
+    localProxy = ''
+    fetchServer = ''
+    if parseConf('./proxy.conf'):
+        print 'Local Proxy: %s' % localProxy
+        print 'Fetch Server: %s' % fetchServer
+        print '--------------------------------------------'
+        httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
+        httpd.serve_forever()
