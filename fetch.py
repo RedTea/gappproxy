@@ -23,14 +23,7 @@ import logging
 import base64
 import zlib
 from google.appengine.ext import webapp
-from google.appengine.ext import db
 from google.appengine.api import urlfetch
-
-
-class FetchFromIP(db.Model):
-    fromIP = db.StringProperty(required=True)
-    successedCount = db.IntegerProperty()
-    failedCount = db.IntegerProperty()
 
 
 class MainHandler(webapp.RequestHandler):
