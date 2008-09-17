@@ -116,7 +116,7 @@ class MainHandler(webapp.RequestHandler):
 
         # fetch
         try:
-            resp = urlfetch.fetch(newPath, origPostData, method, newHeaders)
+            resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
         except Exception, e:
             self.myerror(500)
             self.log(self.request.remote_addr, origPath, False)
