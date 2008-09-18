@@ -16,12 +16,7 @@
 #                                                                           #
 #############################################################################
 
-import wsgiref.handlers
-import urlparse
-import StringIO
-import logging
-import base64
-import zlib
+import wsgiref.handlers, urlparse, StringIO, logging, base64, zlib
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch
 
@@ -33,14 +28,11 @@ class MainHandler(webapp.RequestHandler):
                'proxy-authorization', 'te', 'trailers',
                'transfer-encoding', 'upgrade']
 
-    def myerror(self, status):
+    def myError(self, status):
         self.response.out.write('HTTP/1.1 %d %s\r\n' % (status, \
                                 self.response.http_status_message(status)))
         self.response.out.write('Server: %s\r\n' % self.Software)
         self.response.out.write('\r\n')
-
-    def log(self, srcIP, url, successed=True):
-        pass
 
     def post(self):
         try:
@@ -55,8 +47,7 @@ class MainHandler(webapp.RequestHandler):
             if origMethod != 'GET' and origMethod != 'HEAD' \
                and origMethod != 'POST':
                 # forbid
-                self.myerror(403)
-                self.log(self.request.remote_addr, origPath, False)
+                self.myError(403)
                 return
             if origMethod == 'GET':
                 method = urlfetch.GET
@@ -66,10 +57,9 @@ class MainHandler(webapp.RequestHandler):
                 method = urlfetch.POST
 
             # check path
-            scm, netloc, path, params, query, frag = urlparse.urlparse(origPath)
+            (scm, netloc, path, params, query, _) = urlparse.urlparse(origPath)
             if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
-                self.myerror(403)
-                self.log(self.request.remote_addr, origPath, False)
+                self.myError(403)
                 return
             # create new path
             newPath = urlparse.urlunparse((scm, netloc, path, params, query, ''))
@@ -84,7 +74,7 @@ class MainHandler(webapp.RequestHandler):
                 if line == '':
                     break
                 # parse line
-                name, sep, value = line.partition(':')
+                (name, _, value) = line.partition(':')
                 name = name.strip()
                 value = value.strip()
                 if name.lower() in self.HtohHdrs:
@@ -99,27 +89,27 @@ class MainHandler(webapp.RequestHandler):
             # check post data
             if contentLength != 0:
                 if contentLength != len(origPostData):
-                    self.myerror(403)
-                    self.log(self.request.remote_addr, origPath, False)
+                    self.myError(403)
                     return
             else:
                 origPostData = ''
 
             if origPostData != '' and origMethod != 'POST':
-                self.myerror(403)
-                self.log(self.request.remote_addr, origPath, False)
+                self.myError(403)
                 return
         except Exception:
-            self.myerror(403)
-            self.log(self.request.remote_addr, origPath, False)
+            self.myError(403)
             return
 
-        # fetch
-        try:
-            resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
-        except Exception, e:
-            self.myerror(500)
-            self.log(self.request.remote_addr, origPath, False)
+        # fetch, try 3 times
+        for _ in range(3):
+            try:
+                resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
+                break
+            except Exception:
+                continue
+        else:
+            self.myError(500)
             return
 
         # forward
@@ -134,13 +124,14 @@ class MainHandler(webapp.RequestHandler):
             if header.strip().lower() in self.HtohHdrs:
                 # don't forward
                 continue
-            # maybe there are some problems on multi-cookie process in urlfetch.
-            if header.lower() == 'set-cookie':
-                scs = resp.headers[header].split(',')
-                for sc in scs:
-                    #logging.info('%s: %s' % (header, sc.strip()))
-                    self.response.out.write('%s: %s\r\n' % (header, sc.strip()))
-                continue
+            ## there may have some problems on multi-cookie process in urlfetch.
+            #if header.lower() == 'set-cookie':
+            #    logging.info('O %s: %s' % (header, resp.headers[header]))
+            #    scs = resp.headers[header].split(',')
+            #    for sc in scs:
+            #        logging.info('N %s: %s' % (header, sc.strip()))
+            #        self.response.out.write('%s: %s\r\n' % (header, sc.strip()))
+            #    continue
             # other
             self.response.out.write('%s: %s\r\n' % (header, resp.headers[header]))
             # check Content-Type
@@ -160,8 +151,6 @@ class MainHandler(webapp.RequestHandler):
                 self.response.out.write(resp.content)
         else:
             self.response.out.write(resp.content)
-        # log it
-        self.log(self.request.remote_addr, newPath, True)
 
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
@@ -186,7 +175,12 @@ class MainHandler(webapp.RequestHandler):
             <tr><td align="center"><hr></td></tr>
 
             <tr><td align="center">
-                更多相关介绍,请参考<a href="http://code.google.com/p/gappproxy/">GAppProxy项目主页</a>. 
+                更多相关介绍,请参考<a href="http://gappproxy.googlecode.com/">GAppProxy项目主页</a>. 
+            </td></tr>
+            <tr><td align="center"><hr></td></tr>
+
+            <tr><td align="center">
+                <img src="http://code.google.com/appengine/images/appengine-silver-120x30.gif" alt="Powered by Google App Engine" />
             </td></tr>
             <tr><td align="center"><hr></td></tr>
         </table>
@@ -196,7 +190,7 @@ class MainHandler(webapp.RequestHandler):
 
 
 def main():
-    application = webapp.WSGIApplication([('/fetch.py', MainHandler)], debug=True)
+    application = webapp.WSGIApplication([('/fetch.py', MainHandler)])
     wsgiref.handlers.CGIHandler().run(application)
 
 

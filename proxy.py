@@ -16,23 +16,19 @@
 #                                                                           #
 #############################################################################
 
-import BaseHTTPServer
-import SocketServer
-import urllib
-import urllib2
-import urlparse
-import zlib
-import socket
+import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
+socket, random
 try:
     import ssl
     SSLEnable = True
 except:
     SSLEnable = False
-import random
+
+# global varibles
+localProxy = ''
+fetchServer = ''
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    global localProxy, fetchServer
-
     PostDataLimit = 0x100000
 
     def do_CONNECT(self):
@@ -45,7 +41,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             return
             
         # for ssl proxy
-        httpsHost, sep, httpsPort = self.path.partition(':')
+        (httpsHost, _, httpsPort) = self.path.partition(':')
         if httpsPort != '' and httpsPort != '443':
             # unsupport
             self.wfile.write('HTTP/1.1 403 Forbidden\r\n')
@@ -89,7 +85,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             firstLine += chr
 
         # get path
-        method, path, ver = firstLine.split()
+        (method, path, ver) = firstLine.split()
         if path.startswith('/'):
             path = 'https://%s' % httpsHost + path
 
@@ -108,6 +104,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     # error
                     sslSock.close()
                     self.connection.close()
+                    sock.close()
                     return
                 # timeout
                 break
@@ -130,10 +127,10 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # clean
         sock.close()
         sslSock.shutdown(socket.SHUT_WR)
+        sslSock.close()
         self.connection.close()
     
     def do_METHOD(self):
-        #print 'do_METHOD BEGIN!'
         # check http method and post data
         method = self.command
         if method == 'GET' or method == 'HEAD':
@@ -166,7 +163,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 return
 
         # do path check
-        scm, netloc, path, params, query, frag = urlparse.urlparse(self.path)
+        (scm, netloc, path, params, query, _) = urlparse.urlparse(self.path)
         if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
             self.send_error(400)
             self.connection.close()
@@ -188,7 +185,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         request.add_header('Connection', 'close')
         # create new opener
         if localProxy != '':
-            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+            proxy_handler = urllib2.ProxyHandler({'http': localProxy, 'https': localProxy})
         else:
             proxy_handler = urllib2.ProxyHandler({})
         opener = urllib2.build_opener(proxy_handler)
@@ -210,7 +207,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             if line == '':
                 break
             # header
-            name, sep, value = line.partition(':')
+            (name, _, value) = line.partition(':')
             name = name.strip()
             value = value.strip()
             self.send_header(name, value)
@@ -228,7 +225,6 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         else:
             self.wfile.write(resp.read())
         self.connection.close()
-        #print 'do_METHOD END!'
     
     do_GET = do_METHOD
     do_HEAD = do_METHOD
@@ -254,10 +250,13 @@ def parseConf(confFile):
             break
         # parse line
         line = line.strip()
+        if line == '':
+            # empty line
+            continue
         if line.startswith('#'):
             # comments
             continue
-        (name, sep, value) = line.partition('=')
+        (name, _, value) = line.partition('=')
         name = name.strip().lower()
         value = value.strip()
         if name == 'local_proxy':
@@ -268,7 +267,7 @@ def parseConf(confFile):
     # check
     if len(fetchServers) == 0:
         # no fetch server
-        print 'I cat\'t get any fetch_server from proxy.conf.'
+        print 'I cat\'t find any fetch_server from %s.' % confFile
         return False
 
     # random select
@@ -280,8 +279,6 @@ def parseConf(confFile):
 
 
 if __name__ == '__main__':
-    global localProxy, fetchServer
-
     if SSLEnable:
         print '--------------------------------------------'
         print 'HTTP Enabled : YES'
@@ -290,11 +287,9 @@ if __name__ == '__main__':
         print 'HTTP Enabled : YES'
         print 'HTTPS Enabled: NO'
 
-    localProxy = ''
-    fetchServer = ''
     if parseConf('./proxy.conf'):
-        print 'Local Proxy: %s' % localProxy
-        print 'Fetch Server: %s' % fetchServer
+        print 'Local Proxy  : %s' % localProxy
+        print 'Fetch Server : %s' % fetchServer
         print '--------------------------------------------'
         httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
         httpd.serve_forever()
