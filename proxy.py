@@ -16,8 +16,7 @@
 #                                                                           #
 #############################################################################
 
-import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
-socket, random
+import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, socket
 try:
     import ssl
     SSLEnable = True
@@ -185,7 +184,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         request.add_header('Connection', 'close')
         # create new opener
         if localProxy != '':
-            proxy_handler = urllib2.ProxyHandler({'http': localProxy, 'https': localProxy})
+            proxy_handler = urllib2.ProxyHandler({'http': localProxy, \
+                                                  'https': localProxy})
         else:
             proxy_handler = urllib2.ProxyHandler({})
         opener = urllib2.build_opener(proxy_handler)
@@ -230,16 +230,27 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     do_HEAD = do_METHOD
     do_POST = do_METHOD
 
-
 class ThreadingHTTPServer(SocketServer.ThreadingMixIn, 
                           BaseHTTPServer.HTTPServer): 
     pass
 
+def getAvailableFetchServer():
+    try:
+        request = urllib2.Request('http://gappproxy-center.appspot.com/available_fetchserver.py')
+        if localProxy != '':
+            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+        else:
+            proxy_handler = urllib2.ProxyHandler({})
+        opener = urllib2.build_opener(proxy_handler)
+        # set the opener as the default opener
+        urllib2.install_opener(opener)
+        resp = urllib2.urlopen(request)
+        return resp.read().strip()
+    except BaseException:
+        return ''
 
 def parseConf(confFile):
     global localProxy, fetchServer
-
-    fetchServers = []
 
     # read config file
     fp = open(confFile, 'r')
@@ -262,25 +273,17 @@ def parseConf(confFile):
         if name == 'local_proxy':
             localProxy = value
         elif name == 'fetch_server':
-            fetchServers.append(value)
-
-    # check
-    if len(fetchServers) == 0:
-        # no fetch server
-        print 'I cat\'t find any fetch_server from %s.' % confFile
-        return False
-
-    # random select
-    if len(fetchServers) > 1:
-        fetchServer = fetchServers[random.randint(0, len(fetchServers) - 1)]
-    else:
-        fetchServer = fetchServers[0]
+            if value.lower() == 'dynamic':
+                fetchServer = getAvailableFetchServer()
+                if fetchServer == '':
+                    return False
+            else:
+                fetchServer = value
     return True
 
-
 if __name__ == '__main__':
+    print '--------------------------------------------'
     if SSLEnable:
-        print '--------------------------------------------'
         print 'HTTP Enabled : YES'
         print 'HTTPS Enabled: YES'
     else:
@@ -293,3 +296,6 @@ if __name__ == '__main__':
         print '--------------------------------------------'
         httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
         httpd.serve_forever()
+    else:
+        print 'Failed to get available fetchserver from http://gappproxy-center.appspot.com.' 
+        print 'Check your network or write down your problem in http://groups.google.com/group/gappproxy please.'

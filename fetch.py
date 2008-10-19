@@ -19,6 +19,7 @@
 import wsgiref.handlers, urlparse, StringIO, logging, base64, zlib
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch
+from accesslog import logAccess
 
 
 class MainHandler(webapp.RequestHandler):
@@ -151,6 +152,9 @@ class MainHandler(webapp.RequestHandler):
                 self.response.out.write(resp.content)
         else:
             self.response.out.write(resp.content)
+
+        # log
+        #logAccess(netloc, self.request.remote_addr)
 
     def get(self):
         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'

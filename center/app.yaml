@@ -1,0 +1,12 @@
+application: gappproxy-center
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+
+- url: /available_fetchserver.py
+  script: available_fetchserver.py
+
+- url: .*
+  script: main.py
