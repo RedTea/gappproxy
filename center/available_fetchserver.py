@@ -25,7 +25,8 @@ class MainHandler(webapp.RequestHandler):
         fss = ['http://fetchserver1.appspot.com/fetch.py', 
                'http://fetchserver2.appspot.com/fetch.py', 
                'http://fetchserver3.appspot.com/fetch.py', 
-               'http://wcm.appspot.com/fetch.py']
+               'http://wcm.appspot.com/fetch.py', 
+               'http://fetchserver-nolog.appspot.com/fetch.py']
         self.response.headers['Content-Type'] = 'text/plain'
         self.response.out.write(fss[random.randint(0, len(fss) - 1)])
 
