@@ -1,0 +1,155 @@
+<ui version="4.0" >
+ <class>MainForm</class>
+ <widget class="QWidget" name="MainForm" >
+  <property name="geometry" >
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>161</height>
+   </rect>
+  </property>
+  <property name="windowTitle" >
+   <string>Form</string>
+  </property>
+  <widget class="QGroupBox" name="groupBox" >
+   <property name="geometry" >
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>381</width>
+     <height>111</height>
+    </rect>
+   </property>
+   <property name="title" >
+    <string>GroupBox</string>
+   </property>
+   <widget class="QCheckBox" name="proxyCheckBox" >
+    <property name="geometry" >
+     <rect>
+      <x>10</x>
+      <y>20</y>
+      <width>90</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text" >
+     <string>CheckBox</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="proxyEdit" >
+    <property name="geometry" >
+     <rect>
+      <x>110</x>
+      <y>20</y>
+      <width>260</width>
+      <height>20</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="fetchserverEdit" >
+    <property name="geometry" >
+     <rect>
+      <x>110</x>
+      <y>50</y>
+      <width>260</width>
+      <height>20</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="fetchserverCheckBox" >
+    <property name="geometry" >
+     <rect>
+      <x>10</x>
+      <y>50</y>
+      <width>90</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text" >
+     <string>CheckBox</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="applyButton" >
+    <property name="geometry" >
+     <rect>
+      <x>110</x>
+      <y>80</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text" >
+     <string>PushButton</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="saveButton" >
+    <property name="geometry" >
+     <rect>
+      <x>190</x>
+      <y>80</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text" >
+     <string>PushButton</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QPushButton" name="hideButton" >
+   <property name="geometry" >
+    <rect>
+     <x>40</x>
+     <y>130</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>PushButton</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="upgradeButton" >
+   <property name="geometry" >
+    <rect>
+     <x>120</x>
+     <y>130</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>PushButton</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="aboutButton" >
+   <property name="geometry" >
+    <rect>
+     <x>200</x>
+     <y>130</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>PushButton</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="quitButton" >
+   <property name="geometry" >
+    <rect>
+     <x>280</x>
+     <y>130</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>PushButton</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

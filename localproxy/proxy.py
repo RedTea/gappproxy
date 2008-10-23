@@ -6,13 +6,22 @@
 #                                                                           #
 #   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
 #                                                                           #
-#   This program is free software; you can redistribute it and/or modify    #
-#   it under the terms of the GNU General Public License as published by    #
-#   the Free Software Foundation; either version 2 of the License, or       #
-#   (at your option) any later version.                                     #
-#                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
-#   Blog: http://inside2004.cublog.cn                                       #
+#                                                                           #
+#   This file is part of GAppProxy.                                         #
+#                                                                           #
+#   GAppProxy is free software: you can redistribute it and/or modify       #
+#   it under the terms of the GNU General Public License as                 #
+#   published by the Free Software Foundation, either version 3 of the      #
+#   License, or (at your option) any later version.                         #
+#                                                                           #
+#   GAppProxy is distributed in the hope that it will be useful,            #
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of          #
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the           #
+#   GNU General Public License for more details.                            #
+#                                                                           #
+#   You should have received a copy of the GNU General Public License       #
+#   along with GAppProxy.  If not, see <http://www.gnu.org/licenses/>.      #
 #                                                                           #
 #############################################################################
 
@@ -24,7 +33,7 @@ except:
     SSLEnable = False
 
 # global varibles
-localProxy = ''
+localProxy = 'www.google.cn:80'
 fetchServer = ''
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -253,7 +262,12 @@ def parseConf(confFile):
     global localProxy, fetchServer
 
     # read config file
-    fp = open(confFile, 'r')
+    try:
+        fp = open(confFile, 'r')
+    except IOError:
+        # use default parameters
+        return
+    # parse user defined parameters
     while True:
         line = fp.readline()
         if line == '':
@@ -273,13 +287,7 @@ def parseConf(confFile):
         if name == 'local_proxy':
             localProxy = value
         elif name == 'fetch_server':
-            if value.lower() == 'dynamic':
-                fetchServer = getAvailableFetchServer()
-                if fetchServer == '':
-                    return False
-            else:
-                fetchServer = value
-    return True
+            fetchServer = value
 
 if __name__ == '__main__':
     print '--------------------------------------------'
@@ -290,7 +298,10 @@ if __name__ == '__main__':
         print 'HTTP Enabled : YES'
         print 'HTTPS Enabled: NO'
 
-    if parseConf('./proxy.conf'):
+    parseConf('./proxy.conf')
+    if fetchServer == '':
+        fetchServer = getAvailableFetchServer()
+    if fetchServer != '':
         print 'Local Proxy  : %s' % localProxy
         print 'Fetch Server : %s' % fetchServer
         print '--------------------------------------------'
