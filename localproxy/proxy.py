@@ -25,7 +25,8 @@
 #                                                                           #
 #############################################################################
 
-import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, socket
+import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
+       socket, os, common, sys
 try:
     import ssl
     SSLEnable = True
@@ -33,8 +34,8 @@ except:
     SSLEnable = False
 
 # global varibles
-localProxy = 'www.google.cn:80'
-fetchServer = ''
+localProxy = common.DEF_LOCAL_PROXY
+fetchServer = common.DEF_FETCH_SERVER
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
@@ -196,7 +197,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             proxy_handler = urllib2.ProxyHandler({'http': localProxy, \
                                                   'https': localProxy})
         else:
-            proxy_handler = urllib2.ProxyHandler({})
+            proxy_handler = urllib2.ProxyHandler({'http': 'www.google.cn:80', \
+                                                  'https': 'www.google.cn:80'})
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
@@ -249,7 +251,7 @@ def getAvailableFetchServer():
         if localProxy != '':
             proxy_handler = urllib2.ProxyHandler({'http': localProxy})
         else:
-            proxy_handler = urllib2.ProxyHandler({})
+            proxy_handler = urllib2.ProxyHandler({'http': 'www.google.cn:80'})
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
@@ -306,7 +308,21 @@ if __name__ == '__main__':
         print 'Fetch Server : %s' % fetchServer
         print '--------------------------------------------'
         httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
-        httpd.serve_forever()
+        #httpd.serve_forever()
+        while True:
+            # parameters changed?
+            if os.path.exists(common.DEF_COMM_FILE):
+                # renew
+                localProxy = common.DEF_LOCAL_PROXY
+                fetchServer = common.DEF_FETCH_SERVER
+                parseConf(common.DEF_COMM_FILE)
+                if fetchServer == '':
+                    fetchServer = getAvailableFetchServer()
+                print 'Local Proxy  : %s' % localProxy
+                print 'Fetch Server : %s' % fetchServer
+                os.remove(common.DEF_COMM_FILE)
+            # do handle
+            httpd.handle_request()
     else:
         print 'Failed to get available fetchserver from http://gappproxy-center.appspot.com.' 
         print 'Check your network or write down your problem in http://groups.google.com/group/gappproxy please.'

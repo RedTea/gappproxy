@@ -2,7 +2,7 @@
 # coding=utf-8
 #############################################################################
 #                                                                           #
-#   File: setup.py                                                          #
+#   File: common.py                                                         #
 #                                                                           #
 #   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
 #                                                                           #
@@ -25,7 +25,7 @@
 #                                                                           #
 #############################################################################
 
-from distutils.core import setup
-import py2exe
-
-setup(windows=['proxy.py', 'gui.pyw'])
+DEF_LOCAL_PROXY = ''
+DEF_FETCH_SERVER = ''
+DEF_CONF_FILE = './proxy.conf'
+DEF_COMM_FILE = './proxy.conf.tmp'

@@ -25,9 +25,52 @@
 #                                                                           #
 #############################################################################
 
-import sys
+import sys, os, common, win32api, win32con, win32pdhutil
 from PyQt4 import QtCore, QtGui
 from mainform_ui import Ui_MainForm
+
+def readProxyAndFetchServer(confFile):
+    localProxy = common.DEF_LOCAL_PROXY
+    fetchServer = common.DEF_FETCH_SERVER
+    # read config file
+    try:
+        fp = open(confFile, 'r')
+    except IOError:
+        # use default parameters
+        return (localProxy, fetchServer)
+    # parse user defined parameters
+    while True:
+        line = fp.readline()
+        if line == '':
+            # end
+            break
+        # parse line
+        line = line.strip()
+        if line == '':
+            # empty line
+            continue
+        if line.startswith('#'):
+            # comments
+            continue
+        (name, _, value) = line.partition('=')
+        name = name.strip().lower()
+        value = value.strip()
+        if name == 'local_proxy':
+            localProxy = value
+        elif name == 'fetch_server':
+            fetchServer = value
+    return (localProxy, fetchServer)
+
+def writeConfFile(confFile, localProxy, fetchServer):
+    try:
+        fp = open(confFile, 'w')
+        if localProxy != common.DEF_LOCAL_PROXY:
+            fp.write('local_proxy = %s\r\n' % localProxy)
+        if fetchServer != common.DEF_FETCH_SERVER:
+            fp.write('fetch_server = %s\r\n' % fetchServer)
+        fp.close()
+    except:
+        QtGui.QMessageBox.warning(self, 'Error', 'Write Error!')
 
 class MainForm(QtGui.QMainWindow):
     def __init__(self, parent=None):
@@ -39,6 +82,18 @@ class MainForm(QtGui.QMainWindow):
         self.createActions()
         self.createTrayIcon()
         # event process
+        QtCore.QObject.connect(self.ui.proxyCheckBox, \
+                               QtCore.SIGNAL('clicked()'), \
+                               self.useProxy)
+        QtCore.QObject.connect(self.ui.fetchserverCheckBox, \
+                               QtCore.SIGNAL('clicked()'), \
+                               self.useFetchServer)
+        QtCore.QObject.connect(self.ui.applyButton, \
+                               QtCore.SIGNAL('clicked()'), \
+                               self.applyChange)
+        QtCore.QObject.connect(self.ui.saveButton, \
+                               QtCore.SIGNAL('clicked()'), \
+                               self.saveChange)
         QtCore.QObject.connect(self.ui.hideButton, \
                                QtCore.SIGNAL('clicked()'), \
                                self.hideMainForm)
@@ -51,6 +106,20 @@ class MainForm(QtGui.QMainWindow):
         QtCore.QObject.connect(self.ui.quitButton, \
                                QtCore.SIGNAL('clicked()'), \
                                self.close)
+        # read conf file
+        (self.savedLocalProxy, self.savedFetchServer) = \
+            readProxyAndFetchServer(common.DEF_CONF_FILE)
+        self.localProxy = self.savedLocalProxy
+        self.fetchServer = self.savedFetchServer
+        # update control
+        if self.localProxy != common.DEF_LOCAL_PROXY:
+            self.ui.proxyCheckBox.setChecked(True)
+            self.ui.proxyEdit.setEnabled(True)
+            self.ui.proxyEdit.setText(self.localProxy)
+        if self.fetchServer != common.DEF_FETCH_SERVER:
+            self.ui.fetchserverCheckBox.setChecked(True)
+            self.ui.fetchserverEdit.setEnabled(True)
+            self.ui.fetchserverEdit.setText(self.fetchServer)
 
     def createActions(self):
         self.restoreAction = QtGui.QAction('Restore', self)
@@ -68,6 +137,55 @@ class MainForm(QtGui.QMainWindow):
         self.trayIcon.setIcon(QtGui.QIcon('./images/gap.png'))
         self.trayIcon.setToolTip('GAppProxy')
 
+    def useProxy(self):
+        if self.ui.proxyCheckBox.isChecked():
+            self.ui.proxyEdit.setEnabled(True)
+        else:
+            self.ui.proxyEdit.setEnabled(False)
+
+    def useFetchServer(self):
+        if self.ui.fetchserverCheckBox.isChecked():
+            self.ui.fetchserverEdit.setEnabled(True)
+        else:
+            self.ui.fetchserverEdit.setEnabled(False)
+
+    def applyChange(self):
+        # get new value
+        if self.ui.proxyCheckBox.isChecked():
+            localProxy = str(self.ui.proxyEdit.text())
+        else:
+            localProxy = common.DEF_LOCAL_PROXY
+        if self.ui.fetchserverCheckBox.isChecked():
+            fetchServer = str(self.ui.fetchserverEdit.text())
+        else:
+            fetchServer = common.DEF_FETCH_SERVER
+        localProxy = localProxy.strip()
+        fetchServer = fetchServer.strip()
+        # should write?
+        if localProxy != self.localProxy or fetchServer != self.fetchServer:
+            self.localProxy = localProxy
+            self.fetchServer = fetchServer
+            writeConfFile(common.DEF_COMM_FILE, localProxy, fetchServer)
+
+    def saveChange(self):
+        # get new value
+        if self.ui.proxyCheckBox.isChecked():
+            localProxy = str(self.ui.proxyEdit.text())
+        else:
+            localProxy = common.DEF_LOCAL_PROXY
+        if self.ui.fetchserverCheckBox.isChecked():
+            fetchServer = str(self.ui.fetchserverEdit.text())
+        else:
+            fetchServer = common.DEF_FETCH_SERVER
+        localProxy = localProxy.strip()
+        fetchServer = fetchServer.strip()
+        # should write?
+        if localProxy != self.savedLocalProxy \
+           or fetchServer != self.savedFetchServer:
+            self.savedLocalProxy = localProxy
+            self.savedFetchServer = fetchServer
+            writeConfFile(common.DEF_CONF_FILE, localProxy, fetchServer)
+
     def hideMainForm(self):
         self.hide()
         self.trayIcon.show()
@@ -81,16 +199,18 @@ class MainForm(QtGui.QMainWindow):
 
     def showAboutDlg(self):
         QtGui.QMessageBox.information(self, 'About GAppProxy', 
-            'GAppProxy'
-            '<p>'
-            'License: GPLv3'
-            '<p>'
-            'Version: svn r35'
-            '<p>'
-            'Home: <a href="http://gappproxy.googlecode.com">GAppProxy</a>'
-            '<p>'
-            'Maintained by: <a href="mailto:dugang@188.com">DuGang</a>'
-            ' & <a href="mailto:lovelywcm@gmail.com">WCM</a>')
+            '<table border="0" align="center">\r\n'
+            '<tr><th align="center" colspan="2">GAppProxy</th></tr>\r\n'
+            '<tr><td align="center" colspan="2"></td></tr>\r\n'
+            '<tr><td align="center" colspan="2">A free HTTP proxy based on Google App Engine.</td></tr>\r\n'
+            '<tr><td align="center" colspan="2"><hr></td></tr>\r\n'
+            '<tr><td align="center" colspan="2">Version: svn r35</td></tr>\r\n'
+            '<tr><td align="center" colspan="2">License: GPLv3</td></tr>\r\n'
+            '<tr><td align="center" colspan="2">Home: <a href="http://gappproxy.googlecode.com">GAppProxy</a></td></tr>\r\n'
+            '<tr><td align="center" colspan="2"><hr></td></tr>\r\n'
+            '<tr><td align="right">Maintained by:</td><td align="left"><a href="mailto:dugang@188.com">DuGang</a></td></tr>\r\n'
+            '<tr><td></td><td align="left"><a href="mailto:lovelywcm@gmail.com">WCM</a></td></tr>\r\n'
+            '</table>\r\n')
 
     def closeEvent(self, event):
         r = QtGui.QMessageBox.question(self, 'Confirm',
@@ -100,8 +220,33 @@ class MainForm(QtGui.QMainWindow):
         if r != QtGui.QMessageBox.Yes:
             event.ignore()
 
+def kill_WIN32(pid):
+    h = win32api.OpenProcess(win32con.PROCESS_TERMINATE, 0, pid)
+    win32api.TerminateProcess(h, 0)
+    win32api.CloseHandle(h)
+
+def killByHandle(h):
+    win32api.TerminateProcess(h, 0)
+    win32api.CloseHandle(h)
+
+def killall_WIN32(name):
+    pids = win32pdhutil.FindPerformanceAttributesByName(name)  
+    for pid in pids:
+        kill_WIN32(pid)
+
 if __name__ == '__main__':
+    # clear run env
+    try:
+        os.remove(common.DEF_COMM_FILE)
+    except:
+        pass
+    killall_WIN32('proxy')
+    # run proxy server
+    h = os.spawnl(os.P_NOWAIT, './proxy.exe')
+    # GUI
     app = QtGui.QApplication(sys.argv)
     myapp = MainForm()
     myapp.show()
-    sys.exit(app.exec_())
+    r = app.exec_()
+    killByHandle(h)
+    sys.exit(r)
