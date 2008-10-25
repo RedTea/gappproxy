@@ -25,7 +25,17 @@
 #                                                                           #
 #############################################################################
 
+LOAD_BALANCE = 'http://gappproxy-center.appspot.com/available_fetchserver.py'
+GOOGLE_PROXY = 'www.google.cn:80'
 DEF_LOCAL_PROXY = ''
 DEF_FETCH_SERVER = ''
+DEF_LISTEN_PORT = 8000
 DEF_CONF_FILE = './proxy.conf'
-DEF_COMM_FILE = './proxy.conf.tmp'
+DEF_COMM_FILE = './.proxy.conf.tmp'
+
+class GAppProxyError(Exception):
+    def __init__(self, reason):
+        self.reason = reason
+
+    def __str__(self):
+        return '<GAppProxy Error: %s>' % self.reason

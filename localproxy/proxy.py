@@ -100,7 +100,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # connect to local proxy server
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', 8000))
+        sock.connect(('127.0.0.1', common.DEF_LISTEN_PORT))
         sock.send('%s %s %s\r\n' % (method, path, ver))
 
         # forward https request
@@ -197,8 +197,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             proxy_handler = urllib2.ProxyHandler({'http': localProxy, \
                                                   'https': localProxy})
         else:
-            proxy_handler = urllib2.ProxyHandler({'http': 'www.google.cn:80', \
-                                                  'https': 'www.google.cn:80'})
+            proxy_handler = urllib2.ProxyHandler({'http': common.GOOGLE_PROXY, \
+                                                  'https': common.GOOGLE_PROXY})
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
@@ -246,19 +246,16 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn,
     pass
 
 def getAvailableFetchServer():
-    try:
-        request = urllib2.Request('http://gappproxy-center.appspot.com/available_fetchserver.py')
-        if localProxy != '':
-            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
-        else:
-            proxy_handler = urllib2.ProxyHandler({'http': 'www.google.cn:80'})
-        opener = urllib2.build_opener(proxy_handler)
-        # set the opener as the default opener
-        urllib2.install_opener(opener)
-        resp = urllib2.urlopen(request)
-        return resp.read().strip()
-    except BaseException:
-        return ''
+    request = urllib2.Request(common.LOAD_BALANCE)
+    if localProxy != '':
+        proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+    else:
+        proxy_handler = urllib2.ProxyHandler({'http': common.GOOGLE_PROXY})
+    opener = urllib2.build_opener(proxy_handler)
+    # set the opener as the default opener
+    urllib2.install_opener(opener)
+    resp = urllib2.urlopen(request)
+    return resp.read().strip()
 
 def parseConf(confFile):
     global localProxy, fetchServer
@@ -283,13 +280,14 @@ def parseConf(confFile):
         if line.startswith('#'):
             # comments
             continue
-        (name, _, value) = line.partition('=')
-        name = name.strip().lower()
-        value = value.strip()
-        if name == 'local_proxy':
-            localProxy = value
-        elif name == 'fetch_server':
-            fetchServer = value
+        (name, sep, value) = line.partition('=')
+        if sep == '=':
+            name = name.strip().lower()
+            value = value.strip()
+            if name == 'local_proxy':
+                localProxy = value
+            elif name == 'fetch_server':
+                fetchServer = value
 
 if __name__ == '__main__':
     print '--------------------------------------------'
@@ -300,29 +298,32 @@ if __name__ == '__main__':
         print 'HTTP Enabled : YES'
         print 'HTTPS Enabled: NO'
 
-    parseConf('./proxy.conf')
+    parseConf(common.DEF_CONF_FILE)
     if fetchServer == '':
         fetchServer = getAvailableFetchServer()
-    if fetchServer != '':
-        print 'Local Proxy  : %s' % localProxy
-        print 'Fetch Server : %s' % fetchServer
-        print '--------------------------------------------'
-        httpd = ThreadingHTTPServer(('', 8000), LocalProxyHandler)
-        #httpd.serve_forever()
-        while True:
-            # parameters changed?
-            if os.path.exists(common.DEF_COMM_FILE):
-                # renew
-                localProxy = common.DEF_LOCAL_PROXY
-                fetchServer = common.DEF_FETCH_SERVER
-                parseConf(common.DEF_COMM_FILE)
-                if fetchServer == '':
-                    fetchServer = getAvailableFetchServer()
-                print 'Local Proxy  : %s' % localProxy
-                print 'Fetch Server : %s' % fetchServer
-                os.remove(common.DEF_COMM_FILE)
-            # do handle
-            httpd.handle_request()
-    else:
-        print 'Failed to get available fetchserver from http://gappproxy-center.appspot.com.' 
-        print 'Check your network or write down your problem in http://groups.google.com/group/gappproxy please.'
+    if fetchServer == '':
+        raise common.GAppProxyError('Invalid response from load balance server.')
+    print 'Local Proxy  : %s' % localProxy
+    print 'Fetch Server : %s' % fetchServer
+    print '--------------------------------------------'
+    httpd = ThreadingHTTPServer(('', common.DEF_LISTEN_PORT), 
+                                LocalProxyHandler)
+    httpd.serve_forever()
+
+    # for 'Apply' in GUI
+    #while True:
+    #    # parameters changed?
+    #    if os.path.exists(common.DEF_COMM_FILE):
+    #        # renew
+    #        localProxy = common.DEF_LOCAL_PROXY
+    #        fetchServer = common.DEF_FETCH_SERVER
+    #        parseConf(common.DEF_COMM_FILE)
+    #        os.remove(common.DEF_COMM_FILE)
+    #        if fetchServer == '':
+    #            fetchServer = getAvailableFetchServer()
+    #        if fetchServer == '':
+    #            raise common.GAppProxyError('Invalid response from load balance server.')
+    #        print 'Local Proxy  : %s' % localProxy
+    #        print 'Fetch Server : %s' % fetchServer
+    #    # do handle
+    #    httpd.handle_request()

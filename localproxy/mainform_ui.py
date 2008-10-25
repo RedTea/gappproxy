@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'mainform.ui'
 #
-# Created: Thu Oct 23 20:40:00 2008
+# Created: Sat Oct 25 10:23:45 2008
 #      by: PyQt4 UI code generator 4.4.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -38,18 +38,20 @@ class Ui_MainForm(object):
         self.saveButton.setGeometry(QtCore.QRect(190, 80, 75, 23))
         self.saveButton.setObjectName("saveButton")
         self.hideButton = QtGui.QPushButton(MainForm)
-        self.hideButton.setGeometry(QtCore.QRect(40, 130, 75, 23))
+        self.hideButton.setGeometry(QtCore.QRect(100, 130, 60, 23))
         self.hideButton.setObjectName("hideButton")
-        self.upgradeButton = QtGui.QPushButton(MainForm)
-        self.upgradeButton.setEnabled(False)
-        self.upgradeButton.setGeometry(QtCore.QRect(120, 130, 75, 23))
-        self.upgradeButton.setObjectName("upgradeButton")
+        self.helpButton = QtGui.QPushButton(MainForm)
+        self.helpButton.setGeometry(QtCore.QRect(170, 130, 60, 23))
+        self.helpButton.setObjectName("helpButton")
         self.aboutButton = QtGui.QPushButton(MainForm)
-        self.aboutButton.setGeometry(QtCore.QRect(200, 130, 75, 23))
+        self.aboutButton.setGeometry(QtCore.QRect(240, 130, 60, 23))
         self.aboutButton.setObjectName("aboutButton")
         self.quitButton = QtGui.QPushButton(MainForm)
-        self.quitButton.setGeometry(QtCore.QRect(280, 130, 75, 23))
+        self.quitButton.setGeometry(QtCore.QRect(310, 130, 60, 23))
         self.quitButton.setObjectName("quitButton")
+        self.statusButton = QtGui.QPushButton(MainForm)
+        self.statusButton.setGeometry(QtCore.QRect(30, 130, 60, 23))
+        self.statusButton.setObjectName("statusButton")
 
         self.retranslateUi(MainForm)
         QtCore.QMetaObject.connectSlotsByName(MainForm)
@@ -62,7 +64,8 @@ class Ui_MainForm(object):
         self.applyButton.setText(QtGui.QApplication.translate("MainForm", "Apply", None, QtGui.QApplication.UnicodeUTF8))
         self.saveButton.setText(QtGui.QApplication.translate("MainForm", "Save", None, QtGui.QApplication.UnicodeUTF8))
         self.hideButton.setText(QtGui.QApplication.translate("MainForm", "Hide", None, QtGui.QApplication.UnicodeUTF8))
-        self.upgradeButton.setText(QtGui.QApplication.translate("MainForm", "Upgrade", None, QtGui.QApplication.UnicodeUTF8))
+        self.helpButton.setText(QtGui.QApplication.translate("MainForm", "Help", None, QtGui.QApplication.UnicodeUTF8))
         self.aboutButton.setText(QtGui.QApplication.translate("MainForm", "About", None, QtGui.QApplication.UnicodeUTF8))
         self.quitButton.setText(QtGui.QApplication.translate("MainForm", "Quit", None, QtGui.QApplication.UnicodeUTF8))
+        self.statusButton.setText(QtGui.QApplication.translate("MainForm", "Status", None, QtGui.QApplication.UnicodeUTF8))
 

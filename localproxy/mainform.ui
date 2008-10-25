@@ -109,9 +109,9 @@
   <widget class="QPushButton" name="hideButton" >
    <property name="geometry" >
     <rect>
-     <x>40</x>
+     <x>100</x>
      <y>130</y>
-     <width>75</width>
+     <width>60</width>
      <height>23</height>
     </rect>
    </property>
@@ -119,28 +119,25 @@
     <string>Hide</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="upgradeButton" >
-   <property name="enabled" >
-    <bool>false</bool>
-   </property>
+  <widget class="QPushButton" name="helpButton" >
    <property name="geometry" >
     <rect>
-     <x>120</x>
+     <x>170</x>
      <y>130</y>
-     <width>75</width>
+     <width>60</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text" >
-    <string>Upgrade</string>
+    <string>Help</string>
    </property>
   </widget>
   <widget class="QPushButton" name="aboutButton" >
    <property name="geometry" >
     <rect>
-     <x>200</x>
+     <x>240</x>
      <y>130</y>
-     <width>75</width>
+     <width>60</width>
      <height>23</height>
     </rect>
    </property>
@@ -151,14 +148,27 @@
   <widget class="QPushButton" name="quitButton" >
    <property name="geometry" >
     <rect>
-     <x>280</x>
+     <x>310</x>
      <y>130</y>
-     <width>75</width>
+     <width>60</width>
      <height>23</height>
     </rect>
    </property>
    <property name="text" >
     <string>Quit</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="statusButton" >
+   <property name="geometry" >
+    <rect>
+     <x>30</x>
+     <y>130</y>
+     <width>60</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text" >
+    <string>Status</string>
    </property>
   </widget>
  </widget>
