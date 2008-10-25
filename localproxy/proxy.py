@@ -185,7 +185,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                                    'path': path, 
                                    'headers': self.headers, 
                                    'encodeResponse': 'compress', 
-                                   'postdata': postData})
+                                   'postdata': postData, 
+                                   'version': 'r55'})
         # accept-encoding: identity, *;q=0
         # connection: close
         #request = urllib2.Request('http://localhost:8080/fetch.py')

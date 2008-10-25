@@ -240,7 +240,7 @@ class MainForm(QtGui.QMainWindow):
             '<tr><td align="center" colspan="2"></td></tr>\r\n'
             '<tr><td align="center" colspan="2">A free HTTP proxy based on Google App Engine.</td></tr>\r\n'
             '<tr><td align="center" colspan="2"><hr></td></tr>\r\n'
-            '<tr><td align="center" colspan="2">Version: svn r38</td></tr>\r\n'
+            '<tr><td align="center" colspan="2">Version: svn r55</td></tr>\r\n'
             '<tr><td align="center" colspan="2">License: GPLv3</td></tr>\r\n'
             '<tr><td align="center" colspan="2">Home: <a href="http://gappproxy.googlecode.com">GAppProxy</a></td></tr>\r\n'
             '<tr><td align="center" colspan="2"><hr></td></tr>\r\n'
