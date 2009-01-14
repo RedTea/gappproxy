@@ -119,6 +119,9 @@ class MainForm(QtGui.QMainWindow):
         QtCore.QObject.connect(self.ui.quitButton, \
                                QtCore.SIGNAL('clicked()'), \
                                self.close)
+        QtCore.QObject.connect(self.ui.serviceButton, \
+                               QtCore.SIGNAL('clicked()'), \
+                               self.showServiceDlg)
         # read conf file
         (self.savedLocalProxy, self.savedFetchServer) = \
             readProxyAndFetchServer(common.DEF_CONF_FILE)
@@ -256,6 +259,36 @@ class MainForm(QtGui.QMainWindow):
         if r != QtGui.QMessageBox.Yes:
             event.ignore()
 
+    def showServiceDlg(self):
+        if win32pdhutil.FindPerformanceAttributesByName('srvany'):
+            s = QtGui.QMessageBox.question(self, 'Remove service?',
+                'You have registered GAppProxy as a system service.\r\n\r\n'
+                'Do you want to remove it?\r\n\r\n'
+                'Note: Vista users need to\r\n'
+                'right click "gui.exe" and choose "Run as Administrator" first.',
+                                        QtGui.QMessageBox.Yes,
+                                        QtGui.QMessageBox.Cancel)
+            if s == QtGui.QMessageBox.Yes:
+                if os.spawnl(os.P_WAIT, 'service\uninstall.bat') != 0:
+                    QtGui.QMessageBox.warning(self, 'failed', 'Please run as administrator')
+                else:
+                    QtGui.QMessageBox.information(self, 'Successful',
+                        'As you wish, GAppProxy service has been removed.')
+        else:
+            s = QtGui.QMessageBox.question(self, 'Register GAppProxy as a system service?',
+                'Do you want to register GAppProxy as a system service?\r\n\r\n'
+                'Thus you don\'t need to run it manually every time.\r\n\r\n'
+                'Note: Vista users need to\r\n'
+                'right click "gui.exe" and choose "Run as Administrator" first.',
+                                        QtGui.QMessageBox.Yes, 
+                                        QtGui.QMessageBox.Cancel)
+            if s == QtGui.QMessageBox.Yes:
+                if os.spawnl(os.P_WAIT, 'service\install.bat') != 0:
+                    QtGui.QMessageBox.warning(self, 'failed', 'Please run as administrator')
+                else:
+                    QtGui.QMessageBox.information(self, 'Successful',
+                        'Great!\r\nGAppProxy is ready to serve, you can quit this program now.')
+
 def kill_WIN32(pid):
     h = win32api.OpenProcess(win32con.PROCESS_TERMINATE, 0, pid)
     win32api.TerminateProcess(h, 0)
@@ -274,9 +307,9 @@ if __name__ == '__main__':
     # clear run env
     try:
         os.remove(common.DEF_COMM_FILE)
+        killall_WIN32('proxy')
     except:
         pass
-    killall_WIN32('proxy')
     # run proxy server
     h = os.spawnl(os.P_NOWAIT, './proxy.exe')
     # GUI

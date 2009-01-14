@@ -27,7 +27,7 @@
 
 from distutils.core import setup
 import py2exe
-import datetime
+import datetime, glob
 
 now = datetime.datetime.now();
 
@@ -48,7 +48,7 @@ setup(
     
     data_files = [
         ('images', ['images/gap.png']),
-        ('service',['Install.bat', 'srvany.exe', 'UnInstall.bat'])
+        ('service', glob.glob('service/*'))
     ]
 )
 
