@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'mainform.ui'
 #
-# Created: Sat Oct 25 10:23:45 2008
+# Created: Wed Jan 14 18:15:40 2009
 #      by: PyQt4 UI code generator 4.4.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -32,16 +32,16 @@ class Ui_MainForm(object):
         self.fetchserverCheckBox.setGeometry(QtCore.QRect(10, 50, 120, 17))
         self.fetchserverCheckBox.setObjectName("fetchserverCheckBox")
         self.applyButton = QtGui.QPushButton(self.groupBox)
-        self.applyButton.setGeometry(QtCore.QRect(110, 80, 75, 23))
+        self.applyButton.setGeometry(QtCore.QRect(70, 80, 75, 23))
         self.applyButton.setObjectName("applyButton")
         self.saveButton = QtGui.QPushButton(self.groupBox)
-        self.saveButton.setGeometry(QtCore.QRect(190, 80, 75, 23))
+        self.saveButton.setGeometry(QtCore.QRect(240, 80, 75, 23))
         self.saveButton.setObjectName("saveButton")
         self.hideButton = QtGui.QPushButton(MainForm)
-        self.hideButton.setGeometry(QtCore.QRect(100, 130, 60, 23))
+        self.hideButton.setGeometry(QtCore.QRect(170, 130, 60, 23))
         self.hideButton.setObjectName("hideButton")
         self.helpButton = QtGui.QPushButton(MainForm)
-        self.helpButton.setGeometry(QtCore.QRect(170, 130, 60, 23))
+        self.helpButton.setGeometry(QtCore.QRect(170, 90, 60, 23))
         self.helpButton.setObjectName("helpButton")
         self.aboutButton = QtGui.QPushButton(MainForm)
         self.aboutButton.setGeometry(QtCore.QRect(240, 130, 60, 23))
@@ -52,6 +52,9 @@ class Ui_MainForm(object):
         self.statusButton = QtGui.QPushButton(MainForm)
         self.statusButton.setGeometry(QtCore.QRect(30, 130, 60, 23))
         self.statusButton.setObjectName("statusButton")
+        self.serviceButton = QtGui.QPushButton(MainForm)
+        self.serviceButton.setGeometry(QtCore.QRect(100, 130, 60, 23))
+        self.serviceButton.setObjectName("serviceButton")
 
         self.retranslateUi(MainForm)
         QtCore.QMetaObject.connectSlotsByName(MainForm)
@@ -68,4 +71,5 @@ class Ui_MainForm(object):
         self.aboutButton.setText(QtGui.QApplication.translate("MainForm", "About", None, QtGui.QApplication.UnicodeUTF8))
         self.quitButton.setText(QtGui.QApplication.translate("MainForm", "Quit", None, QtGui.QApplication.UnicodeUTF8))
         self.statusButton.setText(QtGui.QApplication.translate("MainForm", "Status", None, QtGui.QApplication.UnicodeUTF8))
+        self.serviceButton.setText(QtGui.QApplication.translate("MainForm", "Service", None, QtGui.QApplication.UnicodeUTF8))
 
