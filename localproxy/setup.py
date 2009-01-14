@@ -27,5 +27,30 @@
 
 from distutils.core import setup
 import py2exe
+import datetime
 
-setup(windows=['proxy.py', 'gui.pyw'])
+now = datetime.datetime.now();
+
+setup(
+    options = {"py2exe": 
+        { "optimize": 2,
+          "compressed": 1,
+          "bundle_files": 1
+        }
+    },
+
+    name = "GAppProxy",
+    version = "%d.%d.%d" % (now.year, now.month, now.day),
+    description = "HTTP Proxy. 127.0.0.1:8000",
+
+    zipfile = None,
+    windows=['proxy.py', 'gui.pyw'],
+    
+    data_files = [
+        ('images', ['images/gap.png']),
+        ('service',['Install.bat', 'srvany.exe', 'UnInstall.bat'])
+    ]
+)
+
+#python -OO setup.py py2exe --dist-dir GAppProxy --include sip \
+#&& del GAppProxy\w9xpopen.exe && del GAppProxy\MSVCR71.dll
