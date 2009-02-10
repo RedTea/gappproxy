@@ -52,5 +52,4 @@ setup(
     ]
 )
 
-#python -OO setup.py py2exe --dist-dir GAppProxy --include sip \
-#&& del GAppProxy\w9xpopen.exe && del GAppProxy\MSVCR71.dll
+#python -OO setup.py py2exe --dist-dir GAppProxy --include sip && del GAppProxy\w9xpopen.exe

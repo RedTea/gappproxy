@@ -260,7 +260,7 @@ class MainForm(QtGui.QMainWindow):
             event.ignore()
 
     def showServiceDlg(self):
-        if win32pdhutil.FindPerformanceAttributesByName('srvany'):
+        if os.spawnl(os.P_WAIT, 'service\query.bat') == 0:
             s = QtGui.QMessageBox.question(self, 'Remove service?',
                 'You have registered GAppProxy as a system service.\r\n\r\n'
                 'Do you want to remove it?\r\n\r\n'
