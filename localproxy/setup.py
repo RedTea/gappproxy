@@ -48,7 +48,8 @@ setup(
     
     data_files = [
         ('images', ['images/gap.png']),
-        ('service', glob.glob('service/*'))
+        ('service', glob.glob('service/*')),
+        ('ssl', glob.glob('ssl/*'))
     ]
 )
 

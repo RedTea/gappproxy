@@ -63,8 +63,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write('\r\n')
         sslSock = ssl.SSLSocket(self.connection, 
                                 server_side=True, 
-                                certfile='./LocalProxyServer.cert', 
-                                keyfile='./LocalProxyServer.key')
+                                certfile='ssl/LocalProxyServer.cert', 
+                                keyfile='ssl/LocalProxyServer.key')
 
         # rewrite request line, url to abs
         firstLine = ''

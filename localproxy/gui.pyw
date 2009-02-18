@@ -260,7 +260,8 @@ class MainForm(QtGui.QMainWindow):
             event.ignore()
 
     def showServiceDlg(self):
-        if os.spawnl(os.P_WAIT, 'service\query.bat') == 0:
+        # yeah, twice, or will get incorrect exit status. Don't know why, maybe a bug?
+        if os.spawnl(os.P_WAIT, 'service\query.bat', 'service\query.bat') == 0:
             s = QtGui.QMessageBox.question(self, 'Remove service?',
                 'You have registered GAppProxy as a system service.\r\n\r\n'
                 'Do you want to remove it?\r\n\r\n'
@@ -269,7 +270,7 @@ class MainForm(QtGui.QMainWindow):
                                         QtGui.QMessageBox.Yes,
                                         QtGui.QMessageBox.Cancel)
             if s == QtGui.QMessageBox.Yes:
-                if os.spawnl(os.P_WAIT, 'service\uninstall.bat') != 0:
+                if os.spawnl(os.P_WAIT, 'service\uninstall.bat', 'service\uninstall.bat') != 0:
                     QtGui.QMessageBox.warning(self, 'failed', 'Please run as administrator')
                 else:
                     QtGui.QMessageBox.information(self, 'Successful',
@@ -283,7 +284,7 @@ class MainForm(QtGui.QMainWindow):
                                         QtGui.QMessageBox.Yes, 
                                         QtGui.QMessageBox.Cancel)
             if s == QtGui.QMessageBox.Yes:
-                if os.spawnl(os.P_WAIT, 'service\install.bat') != 0:
+                if os.spawnl(os.P_WAIT, 'service\install.bat', 'service\install.bat') != 0:
                     QtGui.QMessageBox.warning(self, 'failed', 'Please run as administrator')
                 else:
                     QtGui.QMessageBox.information(self, 'Successful',
@@ -311,7 +312,7 @@ if __name__ == '__main__':
     except:
         pass
     # run proxy server
-    h = os.spawnl(os.P_NOWAIT, './proxy.exe')
+    h = os.spawnl(os.P_NOWAIT, './proxy.exe', './proxy.exe')
     # GUI
     app = QtGui.QApplication(sys.argv)
     myapp = MainForm(h)
