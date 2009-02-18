@@ -25,13 +25,21 @@
 #                                                                           #
 #############################################################################
 
+import os, sys
+
+dir = sys.path[0]
+if(hasattr(sys, 'frozen')): # py2exe
+    dir = os.path.dirname(dir)
+
 LOAD_BALANCE = 'http://gappproxy-center.appspot.com/available_fetchserver.py'
 GOOGLE_PROXY = 'www.google.cn:80'
 DEF_LOCAL_PROXY = ''
 DEF_FETCH_SERVER = ''
 DEF_LISTEN_PORT = 8000
-DEF_CONF_FILE = './proxy.conf'
-DEF_COMM_FILE = './.proxy.conf.tmp'
+DEF_KEY_FILE  = os.path.join(dir, 'ssl/LocalProxyServer.key')
+DEF_CERT_FILE = os.path.join(dir, 'ssl/LocalProxyServer.cert')
+DEF_CONF_FILE = os.path.join(dir, 'proxy.conf')
+DEF_COMM_FILE = os.path.join(dir, '.proxy.conf.tmp')
 
 class GAppProxyError(Exception):
     def __init__(self, reason):
