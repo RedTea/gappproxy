@@ -43,9 +43,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_CONNECT(self):
         if not SSLEnable:
             # Not Implemented
-            print 'HTTPS is not enabled: HTTPS needs Python 2.6 or later.'
-            self.wfile.write('HTTP/1.1 501 Not Implemented\r\n')
-            self.wfile.write('\r\n')
+            self.send_error(501, 'HTTPS is not enabled, needs Python 2.6 or later')
             self.connection.close()
             return
             
@@ -53,8 +51,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         (httpsHost, _, httpsPort) = self.path.partition(':')
         if httpsPort != '' and httpsPort != '443':
             # unsupport
-            self.wfile.write('HTTP/1.1 403 Forbidden\r\n')
-            self.wfile.write('\r\n')
+            self.send_error(501, 'Port ' + httpsPort + ' is not supported')
             self.connection.close()
             return
 
@@ -210,6 +207,10 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # for status line
         line = resp.readline()
         status = int(line.split()[1])
+        # server error, avoid response blank message to browser
+        if status >= 500:
+            self.send_error(status, 'Server Error')
+            return
         self.send_response(status)
         # for headers
         while True:
