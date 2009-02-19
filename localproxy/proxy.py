@@ -321,7 +321,7 @@ if __name__ == '__main__':
         print 'HTTPS Enabled: NO'
 
     parseConf(common.DEF_CONF_FILE)
-    if not localProxy and fetchServer:
+    if not ( localProxy and fetchServer ):
         # except availableServer, also set google_proxy_or_not's value
         availableServer = getAvailableFetchServer()
         fetchServer = fetchServer or availableServer
