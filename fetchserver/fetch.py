@@ -28,7 +28,8 @@
 import wsgiref.handlers, urlparse, StringIO, logging, base64, zlib
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch
-from accesslog import logAccess
+from google.appengine.api import urlfetch_errors
+# from accesslog import logAccess
 
 
 class MainHandler(webapp.RequestHandler):
@@ -116,10 +117,13 @@ class MainHandler(webapp.RequestHandler):
             try:
                 resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
                 break
+            except urlfetch_errors.ResponseTooLargeError:
+                self.myError(413)
+                return
             except Exception:
                 continue
         else:
-            self.myError(500)
+            self.myError(504)
             return
 
         # forward

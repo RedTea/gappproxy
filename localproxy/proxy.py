@@ -207,11 +207,19 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # for status line
         line = resp.readline()
         status = int(line.split()[1])
-        # server error, avoid response blank message to browser
+        # display error message in browser to notify the user
+        if status == 413:
+            self.send_error(413, "Sorry, Google's limit, file size up to 1MB")
+            return
+        if status == 504:
+            self.send_error(504, 'The server may be down or not exist.\
+                      Another possibility: try to request the URL directly')
+            return
         if status >= 500:
             self.send_error(status, 'Server Error')
             return
         self.send_response(status)
+
         # for headers
         while True:
             line = resp.readline()
@@ -290,6 +298,7 @@ def parseConf(confFile):
                 localProxy = value
             elif name == 'fetch_server':
                 fetchServer = value
+    fp.close()
 
 if __name__ == '__main__':
     print '--------------------------------------------'
