@@ -36,6 +36,7 @@ except:
 # global varibles
 localProxy = common.DEF_LOCAL_PROXY
 fetchServer = common.DEF_FETCH_SERVER
+google_proxy_or_not = {}
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
@@ -183,7 +184,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                                    'headers': self.headers, 
                                    'encodeResponse': 'compress', 
                                    'postdata': postData, 
-                                   'version': 'r55'})
+                                   'version': 'r68'})
         # accept-encoding: identity, *;q=0
         # connection: close
         #request = urllib2.Request('http://localhost:8080/fetch.py')
@@ -195,8 +196,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             proxy_handler = urllib2.ProxyHandler({'http': localProxy, \
                                                   'https': localProxy})
         else:
-            proxy_handler = urllib2.ProxyHandler({'http': common.GOOGLE_PROXY, \
-                                                  'https': common.GOOGLE_PROXY})
+            proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
@@ -256,15 +256,26 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn,
     pass
 
 def getAvailableFetchServer():
+    """Get an available fetch server from balance center.
+    Try to request it directly at the first time.
+    Thus we can know, whether google.cn's proxy is needed or not"""
+
+    global google_proxy_or_not
     request = urllib2.Request(common.LOAD_BALANCE)
-    if localProxy != '':
-        proxy_handler = urllib2.ProxyHandler({'http': localProxy})
-    else:
-        proxy_handler = urllib2.ProxyHandler({'http': common.GOOGLE_PROXY})
-    opener = urllib2.build_opener(proxy_handler)
-    # set the opener as the default opener
-    urllib2.install_opener(opener)
-    resp = urllib2.urlopen(request)
+    for _ in range(2):
+        if localProxy != '':
+            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+        else:
+            proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
+        opener = urllib2.build_opener(proxy_handler)
+        urllib2.install_opener(opener)
+        try:
+            resp = urllib2.urlopen(request)
+        except:
+            google_proxy_or_not = {'http': common.GOOGLE_PROXY,
+                                   'https': common.GOOGLE_PROXY}
+        else:
+            break
     return resp.read().strip()
 
 def parseConf(confFile):
@@ -310,8 +321,10 @@ if __name__ == '__main__':
         print 'HTTPS Enabled: NO'
 
     parseConf(common.DEF_CONF_FILE)
-    if fetchServer == '':
-        fetchServer = getAvailableFetchServer()
+    if not localProxy and fetchServer:
+        # except availableServer, also set google_proxy_or_not's value
+        availableServer = getAvailableFetchServer()
+        fetchServer = fetchServer or availableServer
     if fetchServer == '':
         raise common.GAppProxyError('Invalid response from load balance server.')
     print 'Local Proxy  : %s' % localProxy
