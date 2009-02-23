@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: common.py                                                         #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -27,9 +27,21 @@
 
 import os, sys
 
-dir = sys.path[0]
-if(hasattr(sys, 'frozen')): # py2exe
-    dir = os.path.dirname(dir)
+def we_are_frozen():
+    """Returns whether we are frozen via py2exe.
+    This will affect how we find out where we are located."""
+
+    return hasattr(sys, "frozen")
+
+def module_path():
+    """ This will get us the program's directory,
+    even if we are frozen using py2exe"""
+
+    if we_are_frozen():
+        return os.path.dirname(unicode(sys.executable, sys.getfilesystemencoding( )))
+    return os.path.dirname(unicode(__file__, sys.getfilesystemencoding( )))
+
+dir = module_path()
 
 LOAD_BALANCE = 'http://gappproxy-center.appspot.com/available_fetchserver.py'
 GOOGLE_PROXY = 'www.google.cn:80'

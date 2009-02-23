@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: accesslog.py                                                      #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -88,7 +88,3 @@ def clearFro():
 def clearAll():
     clearDesti()
     clearFro()
-
-if __name__ == '__main__':
-    print hash('www.appspot.com')
-    print hash('code.google.com')

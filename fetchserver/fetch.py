@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: fetch.py                                                          #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -33,7 +33,7 @@ from google.appengine.api import urlfetch_errors
 
 
 class MainHandler(webapp.RequestHandler):
-    Software = 'GAppProxy/0.0.1'
+    Software = 'GAppProxy/1.0.0 beta'
     # hop to hop header should not be forwarded
     HtohHdrs= ['connection', 'keep-alive', 'proxy-authenticate',
                'proxy-authorization', 'te', 'trailers',

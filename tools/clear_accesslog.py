@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: clear_accesslog.py                                                #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -38,7 +38,7 @@ def clear():
             resp = urllib2.urlopen(request)
             print resp.read()
             break
-        except BaseException:
+        except Exception:
             print '.'
             sys.stdout.flush()
             continue

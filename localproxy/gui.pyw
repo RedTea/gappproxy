@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: gui.pyw                                                           #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -243,7 +243,7 @@ class MainForm(QtGui.QMainWindow):
             '<tr><td align="center" colspan="2"></td></tr>\r\n'
             '<tr><td align="center" colspan="2">A free HTTP proxy based on Google App Engine.</td></tr>\r\n'
             '<tr><td align="center" colspan="2"><hr></td></tr>\r\n'
-            '<tr><td align="center" colspan="2">Version: svn r55</td></tr>\r\n'
+            '<tr><td align="center" colspan="2">Version: 1.0.0 beta</td></tr>\r\n'
             '<tr><td align="center" colspan="2">License: GPLv3</td></tr>\r\n'
             '<tr><td align="center" colspan="2">Home: <a href="http://gappproxy.googlecode.com">GAppProxy</a></td></tr>\r\n'
             '<tr><td align="center" colspan="2"><hr></td></tr>\r\n'

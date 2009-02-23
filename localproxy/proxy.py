@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: proxy.py                                                          #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -184,7 +184,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                                    'headers': self.headers, 
                                    'encodeResponse': 'compress', 
                                    'postdata': postData, 
-                                   'version': 'r68'})
+                                   'version': '1.0.0 beta'})
         # accept-encoding: identity, *;q=0
         # connection: close
         #request = urllib2.Request('http://localhost:8080/fetch.py')
@@ -193,8 +193,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         request.add_header('Connection', 'close')
         # create new opener
         if localProxy != '':
-            proxy_handler = urllib2.ProxyHandler({'http': localProxy, \
-                                                  'https': localProxy})
+            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
         else:
             proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
         opener = urllib2.build_opener(proxy_handler)
@@ -255,28 +254,34 @@ class ThreadingHTTPServer(SocketServer.ThreadingMixIn,
                           BaseHTTPServer.HTTPServer): 
     pass
 
+def shallWeNeedDefaultProxy():
+    global google_proxy_or_not
+
+    # send http request directly
+    request = urllib2.Request(common.LOAD_BALANCE)
+    try:
+        resp = urllib2.urlopen(request)
+        resp.read()
+    except:
+        google_proxy_or_not = {'http': common.GOOGLE_PROXY}
+
 def getAvailableFetchServer():
     """Get an available fetch server from balance center.
     Try to request it directly at the first time.
     Thus we can know, whether google.cn's proxy is needed or not"""
 
-    global google_proxy_or_not
     request = urllib2.Request(common.LOAD_BALANCE)
-    for _ in range(2):
-        if localProxy != '':
-            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
-        else:
-            proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
-        opener = urllib2.build_opener(proxy_handler)
-        urllib2.install_opener(opener)
-        try:
-            resp = urllib2.urlopen(request)
-        except:
-            google_proxy_or_not = {'http': common.GOOGLE_PROXY,
-                                   'https': common.GOOGLE_PROXY}
-        else:
-            break
-    return resp.read().strip()
+    if localProxy != '':
+        proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+    else:
+        proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
+    opener = urllib2.build_opener(proxy_handler)
+    urllib2.install_opener(opener)
+    try:
+        resp = urllib2.urlopen(request)
+        return resp.read().strip()
+    except:
+        return ''
 
 def parseConf(confFile):
     global localProxy, fetchServer
@@ -321,12 +326,15 @@ if __name__ == '__main__':
         print 'HTTPS Enabled: NO'
 
     parseConf(common.DEF_CONF_FILE)
-    if not ( localProxy and fetchServer ):
-        # except availableServer, also set google_proxy_or_not's value
-        availableServer = getAvailableFetchServer()
-        fetchServer = fetchServer or availableServer
+
+    if localProxy == '':
+        shallWeNeedDefaultProxy()
+
+    if fetchServer == '':
+        fetchServer = getAvailableFetchServer()
     if fetchServer == '':
         raise common.GAppProxyError('Invalid response from load balance server.')
+
     print 'Local Proxy  : %s' % localProxy
     print 'Fetch Server : %s' % fetchServer
     print '--------------------------------------------'
