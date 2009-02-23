@@ -262,16 +262,16 @@ def shallWeNeedDefaultProxy():
     # send http request directly
     request = urllib2.Request(common.LOAD_BALANCE)
     try:
-        resp = urllib2.urlopen(request)
+        # avoid wait too long at startup, timeout argument need py2.6 or later.
+        if SSLEnable:
+            resp = urllib2.urlopen(request, timeout=30)
+        else:
+            resp = urllib2.urlopen(request)
         resp.read()
     except:
         google_proxy_or_not = {'http': common.GOOGLE_PROXY}
 
 def getAvailableFetchServer():
-    """Get an available fetch server from balance center.
-    Try to request it directly at the first time.
-    Thus we can know, whether google.cn's proxy is needed or not"""
-
     request = urllib2.Request(common.LOAD_BALANCE)
     if localProxy != '':
         proxy_handler = urllib2.ProxyHandler({'http': localProxy})
@@ -337,7 +337,8 @@ if __name__ == '__main__':
     if fetchServer == '':
         raise common.GAppProxyError('Invalid response from load balance server.')
 
-    print 'Local Proxy  : %s' % localProxy
+    print 'Local Proxy  : %s' % \
+                ( google_proxy_or_not and common.GOOGLE_PROXY or localProxy )
     print 'Fetch Server : %s' % fetchServer
     print '--------------------------------------------'
     httpd = ThreadingHTTPServer(('', common.DEF_LISTEN_PORT), 
