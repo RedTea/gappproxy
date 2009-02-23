@@ -26,7 +26,7 @@
 #############################################################################
 
 import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
-       socket, os, common, sys
+       socket, os, common, sys, errno
 try:
     import ssl
     SSLEnable = True
@@ -41,11 +41,13 @@ google_proxy_or_not = {}
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
     errMsg = {
-        400: 'Something wrong in request or unsupported scheme(ftp for example)',
+        400: 'Bad request or unsupported scheme(ftp for example)',
+        404: 'Fetchserver not found at the URL you specified, please check it',
         413: 'Sorry, Google\'s limit, file size up to 1MB',
         500: 'The Web Server itself got problem',
-        501: 'HTTPS needs Python 2.6 or later, only standard 443 port supported',
-        502: 'Invalid response from fetchserver, maybe a transmission error',
+        501: 'HTTPS needs Python2.6 or later, only support standard 443 port',
+        502: 'Invalid response from fetchserver, an\
+                occasional transmission error, or the fetchserver is too busy',
         504: 'The server may be down or not exist. \
                 Another possibility: try to request the URL directly'
     }
@@ -210,7 +212,12 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
-        resp = urllib2.urlopen(request, params)
+        try:
+            resp = urllib2.urlopen(request, params)
+        except urllib2.HTTPError, errMsg:
+            errNum = int( str(errMsg).split(' ')[2].split(':')[0] )
+            self.httpError(errNum)
+            return
 
         # parse resp
         textContent = True
@@ -219,7 +226,14 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         status = int(line.split()[1])
         if self.httpError(status):
             return
-        self.send_response(status)
+        try:
+            self.send_response(status)
+        except socket.error, (errNum, _): 
+            # Connection/Webpage closed before proxy return
+            if errNum == errno.EPIPE or errNum == 10053: # *nix, Windows
+                return
+            else:
+                raise
 
         # for headers
         while True:
@@ -337,8 +351,9 @@ if __name__ == '__main__':
     if fetchServer == '':
         raise common.GAppProxyError('Invalid response from load balance server.')
 
-    print 'Local Proxy  : %s' % \
-                ( google_proxy_or_not and common.GOOGLE_PROXY or localProxy )
+    # Want to know whether you are connect to fetchserver direct? uncomment it.
+    #print 'Direct Fetch : %s' % ( google_proxy_or_not and 'No' or 'Yes' )
+    print 'Local Proxy  : %s' % localProxy
     print 'Fetch Server : %s' % fetchServer
     print '--------------------------------------------'
     httpd = ThreadingHTTPServer(('', common.DEF_LISTEN_PORT), 
