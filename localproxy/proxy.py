@@ -40,20 +40,36 @@ google_proxy_or_not = {}
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
+    errMsg = {
+        400: 'Something wrong in request or unsupported scheme(ftp for example)',
+        413: 'Sorry, Google\'s limit, file size up to 1MB',
+        500: 'The Web Server itself got problem',
+        501: 'HTTPS needs Python 2.6 or later, only standard 443 port supported',
+        502: 'Invalid response from fetchserver, maybe a transmission error',
+        504: 'The server may be down or not exist. \
+                Another possibility: try to request the URL directly'
+    }
+
+    def httpError(self, status):
+        """Send error message to browser, let users know what happened.
+            And, avoid python's exception warnings. 
+            return True if status is listed above in errMsg."""
+        try:
+            self.send_error(status, self.errMsg[status])
+            self.connection.close()
+            return True
+        except:
+            return False
 
     def do_CONNECT(self):
         if not SSLEnable:
-            # Not Implemented
-            self.send_error(501, 'HTTPS is not enabled, needs Python 2.6 or later')
-            self.connection.close()
+            self.httpError(501)
             return
-            
+
         # for ssl proxy
         (httpsHost, _, httpsPort) = self.path.partition(':')
         if httpsPort != '' and httpsPort != '443':
-            # unsupport
-            self.send_error(501, 'Port ' + httpsPort + ' is not supported')
-            self.connection.close()
+            self.httpError(501)
             return
 
         # continue
@@ -150,13 +166,11 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 postDataLen = int(self.headers['Content-Length'])
             # exceed limit?
             if postDataLen > self.PostDataLimit:
-                self.send_error(403)
-                self.connection.close()
+                self.httpError(413)
                 return
         else:
             # unsupported method
-            self.send_error(501)
-            self.connection.close()
+            self.httpError(501)
             return
 
         # get post data
@@ -165,15 +179,12 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             postData = self.rfile.read(postDataLen)
             if len(postData) != postDataLen:
                 # bad request
-                self.send_error(400)
-                self.connection.close()
+                self.httpError(400)
                 return
-
         # do path check
         (scm, netloc, path, params, query, _) = urlparse.urlparse(self.path)
         if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
-            self.send_error(400)
-            self.connection.close()
+            self.httpError(400)
             return
         # create new path
         path = urlparse.urlunparse((scm, netloc, path, params, query, ''))
@@ -206,16 +217,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # for status line
         line = resp.readline()
         status = int(line.split()[1])
-        # display error message in browser to notify the user
-        if status == 413:
-            self.send_error(413, "Sorry, Google's limit, file size up to 1MB")
-            return
-        if status == 504:
-            self.send_error(504, 'The server may be down or not exist.\
-                      Another possibility: try to request the URL directly')
-            return
-        if status >= 500:
-            self.send_error(status, 'Server Error')
+        if self.httpError(status):
             return
         self.send_response(status)
 
@@ -245,7 +247,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         else:
             self.wfile.write(resp.read())
         self.connection.close()
-    
+
     do_GET = do_METHOD
     do_HEAD = do_METHOD
     do_POST = do_METHOD
