@@ -196,13 +196,18 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
-        resp = urllib2.urlopen(request, params)
-        #try:
-        #    resp = urllib2.urlopen(request, params)
-        #except urllib2.HTTPError, errMsg:
-        #    errNum = int( str(errMsg).split(' ')[2].split(':')[0] )
-        #    self.httpError(errNum)
-        #    return
+        try:
+            resp = urllib2.urlopen(request, params)
+        except urllib2.HTTPError, errMsg:
+            errNum = int( str(errMsg).split(' ')[2].split(':')[0] )
+            if errNum == 404:
+                self.send_error(404, 'Local proxy error, Fetchserver not found at the URL you specified, please check it.')
+            elif errNum == 502:
+                self.send_error(502, 'Local proxy error, Invalid response from fetchserver, an occasional transmission error, or the fetchserver is too busy.')
+            else:
+                self.send_error(errNum)
+            self.connection.close()
+            return
 
         # parse resp
         textContent = True
