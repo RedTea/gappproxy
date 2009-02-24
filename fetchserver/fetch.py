@@ -39,11 +39,21 @@ class MainHandler(webapp.RequestHandler):
                'proxy-authorization', 'te', 'trailers',
                'transfer-encoding', 'upgrade']
 
-    def myError(self, status):
-        self.response.out.write('HTTP/1.1 %d %s\r\n' % (status, \
-                                self.response.http_status_message(status)))
+    def myError(self, status, description, encodeResponse):
+        # header
+        self.response.out.write('HTTP/1.1 %d %s\r\n' % (status, description))
         self.response.out.write('Server: %s\r\n' % self.Software)
+        self.response.out.write('Content-Type: text/html\r\n')
         self.response.out.write('\r\n')
+        # body
+        #content = '<h1>GAppProxy Error</h1><p><h4>Error Code: %d</h4><p><h4>Message: %s</h4>' % (status, description)
+        content = '<h1>GAppProxy Error</h1><p>Error Code: %d<p>Message: %s' % (status, description)
+        if encodeResponse == 'base64':
+            self.response.out.write(base64.b64encode(content))
+        elif encodeResponse == 'compress':
+            self.response.out.write(zlib.compress(content))
+        else:
+            self.response.out.write(content)
 
     def post(self):
         try:
@@ -58,7 +68,7 @@ class MainHandler(webapp.RequestHandler):
             if origMethod != 'GET' and origMethod != 'HEAD' \
                and origMethod != 'POST':
                 # forbid
-                self.myError(403)
+                self.myError(590, 'Invalid local proxy, Method not allowed.', encodeResponse)
                 return
             if origMethod == 'GET':
                 method = urlfetch.GET
@@ -70,7 +80,7 @@ class MainHandler(webapp.RequestHandler):
             # check path
             (scm, netloc, path, params, query, _) = urlparse.urlparse(origPath)
             if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
-                self.myError(403)
+                self.myError(590, 'Invalid local proxy, Unsupported Scheme.', encodeResponse)
                 return
             # create new path
             newPath = urlparse.urlunparse((scm, netloc, path, params, query, ''))
@@ -100,16 +110,18 @@ class MainHandler(webapp.RequestHandler):
             # check post data
             if contentLength != 0:
                 if contentLength != len(origPostData):
-                    self.myError(403)
+                    self.myError(590, 'Invalid local proxy, Wrong length of post data.',
+                                 encodeResponse)
                     return
             else:
                 origPostData = ''
 
             if origPostData != '' and origMethod != 'POST':
-                self.myError(403)
+                self.myError(590, 'Invalid local proxy, Inconsistent method and data.',
+                             encodeResponse)
                 return
-        except Exception:
-            self.myError(403)
+        except Exception, e:
+            self.myError(591, 'Proxy server error, %s.' % str(e), encodeResponse)
             return
 
         # fetch, try 3 times
@@ -118,12 +130,12 @@ class MainHandler(webapp.RequestHandler):
                 resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
                 break
             except urlfetch_errors.ResponseTooLargeError:
-                self.myError(413)
+                self.myError(591, 'Proxy server error, Sorry, Google\'s limit, file size up to 1MB.', encodeResponse)
                 return
             except Exception:
                 continue
         else:
-            self.myError(504)
+            self.myError(591, 'Proxy server error, The target server may be down or not exist.', encodeResponse)
             return
 
         # forward
@@ -182,7 +194,7 @@ class MainHandler(webapp.RequestHandler):
         <table width="800" border="0" align="center">
             <tr><td align="center"><hr></td></tr>
             <tr><td align="center">
-                <b><h1>GAppProxy已经在工作了</h1></b>
+                <b><h1>%s 已经在工作了</h1></b>
             </td></tr>
             <tr><td align="center"><hr></td></tr>
 
@@ -203,7 +215,7 @@ class MainHandler(webapp.RequestHandler):
         </table>
     </body>
 </html>
-''')
+''' % self.Software)
 
 
 def main():

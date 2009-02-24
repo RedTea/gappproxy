@@ -40,38 +40,18 @@ google_proxy_or_not = {}
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
-    errMsg = {
-        400: 'Bad request or unsupported scheme(ftp for example)',
-        404: 'Fetchserver not found at the URL you specified, please check it',
-        413: 'Sorry, Google\'s limit, file size up to 1MB',
-        500: 'The Web Server itself got problem',
-        501: 'HTTPS needs Python2.6 or later, only support standard 443 port',
-        502: 'Invalid response from fetchserver, an\
-                occasional transmission error, or the fetchserver is too busy',
-        504: 'The server may be down or not exist. \
-                Another possibility: try to request the URL directly'
-    }
-
-    def httpError(self, status):
-        """Send error message to browser, let users know what happened.
-            And, avoid python's exception warnings. 
-            return True if status is listed above in errMsg."""
-        try:
-            self.send_error(status, self.errMsg[status])
-            self.connection.close()
-            return True
-        except:
-            return False
 
     def do_CONNECT(self):
         if not SSLEnable:
-            self.httpError(501)
+            self.send_error(501, 'Local proxy error, HTTPS needs Python2.6 or later.')
+            self.connection.close()
             return
 
         # for ssl proxy
         (httpsHost, _, httpsPort) = self.path.partition(':')
         if httpsPort != '' and httpsPort != '443':
-            self.httpError(501)
+            self.send_error(501, 'Local proxy error, Only port 443 is allowed for https.')
+            self.connection.close()
             return
 
         # continue
@@ -168,11 +148,13 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 postDataLen = int(self.headers['Content-Length'])
             # exceed limit?
             if postDataLen > self.PostDataLimit:
-                self.httpError(413)
+                self.send_error(413, 'Local proxy error, Sorry, Google\'s limit, file size up to 1MB.')
+                self.connection.close()
                 return
         else:
             # unsupported method
-            self.httpError(501)
+            self.send_error(501)
+            self.connection.close()
             return
 
         # get post data
@@ -181,12 +163,14 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             postData = self.rfile.read(postDataLen)
             if len(postData) != postDataLen:
                 # bad request
-                self.httpError(400)
+                self.send_error(400)
+                self.connection.close()
                 return
         # do path check
         (scm, netloc, path, params, query, _) = urlparse.urlparse(self.path)
         if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
-            self.httpError(400)
+            self.send_error(501, 'Local proxy error, Unsupported scheme(ftp for example).')
+            self.connection.close()
             return
         # create new path
         path = urlparse.urlunparse((scm, netloc, path, params, query, ''))
@@ -212,22 +196,23 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
-        try:
-            resp = urllib2.urlopen(request, params)
-        except urllib2.HTTPError, errMsg:
-            errNum = int( str(errMsg).split(' ')[2].split(':')[0] )
-            self.httpError(errNum)
-            return
+        resp = urllib2.urlopen(request, params)
+        #try:
+        #    resp = urllib2.urlopen(request, params)
+        #except urllib2.HTTPError, errMsg:
+        #    errNum = int( str(errMsg).split(' ')[2].split(':')[0] )
+        #    self.httpError(errNum)
+        #    return
 
         # parse resp
         textContent = True
         # for status line
         line = resp.readline()
-        status = int(line.split()[1])
-        if self.httpError(status):
-            return
+        words = line.split()
+        status = int(words[1])
+        reason = ' '.join(words[2:])
         try:
-            self.send_response(status)
+            self.send_response(status, reason)
         except socket.error, (errNum, _): 
             # Connection/Webpage closed before proxy return
             if errNum == errno.EPIPE or errNum == 10053: # *nix, Windows
@@ -277,7 +262,7 @@ def shallWeNeedDefaultProxy():
     request = urllib2.Request(common.LOAD_BALANCE)
     try:
         # avoid wait too long at startup, timeout argument need py2.6 or later.
-        if SSLEnable:
+        if sys.hexversion > 0x20600f0:
             resp = urllib2.urlopen(request, timeout=30)
         else:
             resp = urllib2.urlopen(request)
@@ -352,7 +337,7 @@ if __name__ == '__main__':
         raise common.GAppProxyError('Invalid response from load balance server.')
 
     # Want to know whether you are connect to fetchserver direct? uncomment it.
-    #print 'Direct Fetch : %s' % ( google_proxy_or_not and 'No' or 'Yes' )
+    print 'Direct Fetch : %s' % ( google_proxy_or_not and 'NO' or 'YES' )
     print 'Local Proxy  : %s' % localProxy
     print 'Fetch Server : %s' % fetchServer
     print '--------------------------------------------'
