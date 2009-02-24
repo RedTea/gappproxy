@@ -135,7 +135,7 @@ class MainHandler(webapp.RequestHandler):
             except Exception:
                 continue
         else:
-            self.myError(591, 'Proxy server error, The target server may be down or not exist.', encodeResponse)
+            self.myError(591, 'Proxy server error, The target server may be down or not exist. Another possibility: try to request the URL directly.', encodeResponse)
             return
 
         # forward
