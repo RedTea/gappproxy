@@ -46,8 +46,7 @@ class MainHandler(webapp.RequestHandler):
         self.response.out.write('Content-Type: text/html\r\n')
         self.response.out.write('\r\n')
         # body
-        #content = '<h1>GAppProxy Error</h1><p><h4>Error Code: %d</h4><p><h4>Message: %s</h4>' % (status, description)
-        content = '<h1>GAppProxy Error</h1><p>Error Code: %d<p>Message: %s' % (status, description)
+        content = '<h1>Fetch Server Error</h1><p>Error Code: %d<p>Message: %s' % (status, description)
         if encodeResponse == 'base64':
             self.response.out.write(base64.b64encode(content))
         elif encodeResponse == 'compress':
@@ -59,7 +58,11 @@ class MainHandler(webapp.RequestHandler):
         try:
             # get post data
             origMethod = self.request.get('method')
-            origPath = self.request.get('path')
+            origPath = self.request.get('encoded_path')
+            if origPath != '':
+                origPath = base64.b64decode(origPath)
+            else:
+                origPath = self.request.get('path')
             origHeaders = self.request.get('headers')
             encodeResponse = self.request.get('encodeResponse')
             origPostData = self.request.get('postdata')
@@ -121,7 +124,7 @@ class MainHandler(webapp.RequestHandler):
                              encodeResponse)
                 return
         except Exception, e:
-            self.myError(591, 'Proxy server error, %s.' % str(e), encodeResponse)
+            self.myError(591, 'Fetch server error, %s.' % str(e), encodeResponse)
             return
 
         # fetch, try 3 times
@@ -130,12 +133,12 @@ class MainHandler(webapp.RequestHandler):
                 resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
                 break
             except urlfetch_errors.ResponseTooLargeError:
-                self.myError(591, 'Proxy server error, Sorry, Google\'s limit, file size up to 1MB.', encodeResponse)
+                self.myError(591, 'Fetch server error, Sorry, Google\'s limit, file size up to 1MB.', encodeResponse)
                 return
             except Exception:
                 continue
         else:
-            self.myError(591, 'Proxy server error, The target server may be down or not exist. Another possibility: try to request the URL directly.', encodeResponse)
+            self.myError(591, 'Fetch server error, The target server may be down or not exist. Another possibility: try to request the URL directly.', encodeResponse)
             return
 
         # forward

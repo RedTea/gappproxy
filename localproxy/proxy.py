@@ -26,7 +26,7 @@
 #############################################################################
 
 import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
-       socket, os, common, sys, errno
+       socket, os, common, sys, errno, base64
 try:
     import ssl
     SSLEnable = True
@@ -177,7 +177,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # create request for GAppProxy
         params = urllib.urlencode({'method': method, 
-                                   'path': path, 
+                                   #'path': path, 
+                                   'encoded_path': base64.b64encode(path), 
                                    'headers': self.headers, 
                                    'encodeResponse': 'compress', 
                                    'postdata': postData, 
