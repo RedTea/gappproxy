@@ -269,7 +269,7 @@ def shallWeNeedDefaultProxy():
     try:
         # avoid wait too long at startup, timeout argument need py2.6 or later.
         if sys.hexversion > 0x20600f0:
-            resp = urllib2.urlopen(request, timeout=30)
+            resp = urllib2.urlopen(request, timeout=3)
         else:
             resp = urllib2.urlopen(request)
         resp.read()
