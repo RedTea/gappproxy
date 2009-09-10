@@ -10,13 +10,13 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
-# Used 18 times in query history.
+# Unused in query history -- copied from input.
 - kind: AccessDestination
   properties:
   - name: counter
     direction: desc
 
-# Used 15 times in query history.
+# Unused in query history -- copied from input.
 - kind: AccessFrom
   properties:
   - name: counter

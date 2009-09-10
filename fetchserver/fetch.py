@@ -25,7 +25,7 @@
 #                                                                           #
 #############################################################################
 
-import wsgiref.handlers, urlparse, StringIO, logging, base64, zlib
+import wsgiref.handlers, urlparse, StringIO, logging, base64, zlib, re
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch
 from google.appengine.api import urlfetch_errors
@@ -33,7 +33,7 @@ from google.appengine.api import urlfetch_errors
 
 
 class MainHandler(webapp.RequestHandler):
-    Software = 'GAppProxy/1.0.0 beta'
+    Software = 'GAppProxy/1.1.0 beta'
     # hop to hop header should not be forwarded
     HtohHdrs= ['connection', 'keep-alive', 'proxy-authenticate',
                'proxy-authorization', 'te', 'trailers',
@@ -68,8 +68,7 @@ class MainHandler(webapp.RequestHandler):
             origPostData = self.request.get('postdata')
 
             # check method
-            if origMethod != 'GET' and origMethod != 'HEAD' \
-               and origMethod != 'POST':
+            if origMethod != 'GET' and origMethod != 'HEAD' and origMethod != 'POST':
                 # forbid
                 self.myError(590, 'Invalid local proxy, Method not allowed.', encodeResponse)
                 return
@@ -153,14 +152,19 @@ class MainHandler(webapp.RequestHandler):
             if header.strip().lower() in self.HtohHdrs:
                 # don't forward
                 continue
-            ## there may have some problems on multi-cookie process in urlfetch.
-            #if header.lower() == 'set-cookie':
-            #    logging.info('O %s: %s' % (header, resp.headers[header]))
-            #    scs = resp.headers[header].split(',')
-            #    for sc in scs:
-            #        logging.info('N %s: %s' % (header, sc.strip()))
-            #        self.response.out.write('%s: %s\r\n' % (header, sc.strip()))
-            #    continue
+            # there may have some problems on multi-cookie process in urlfetch.
+            # Set-Cookie: 'wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly, wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly,wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly
+            if header.lower() == 'set-cookie':
+                scs = resp.headers[header].split(',')
+                nsc = ''
+                for sc in scs:
+                    if nsc == '' or re.match(r'[ \t]*[0-9]', sc):
+                        nsc += sc
+                    else:
+                        self.response.out.write('%s: %s\r\n' % (header, nsc.strip()))
+                        nsc = sc
+                self.response.out.write('%s: %s\r\n' % (header, nsc.strip()))
+                continue
             # other
             self.response.out.write('%s: %s\r\n' % (header, resp.headers[header]))
             # check Content-Type
