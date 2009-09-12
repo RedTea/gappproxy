@@ -57,15 +57,15 @@ class MainHandler(webapp.RequestHandler):
     def post(self):
         try:
             # get post data
-            origMethod = self.request.get('method')
-            origPath = self.request.get('encoded_path')
+            origMethod = self.request.get('method').encode('utf-8')
+            origPath = self.request.get('encoded_path').encode('utf-8')
             if origPath != '':
                 origPath = base64.b64decode(origPath)
             else:
-                origPath = self.request.get('path')
-            origHeaders = self.request.get('headers')
-            encodeResponse = self.request.get('encodeResponse')
-            origPostData = self.request.get('postdata')
+                origPath = self.request.get('path').encode('utf-8')
+            origHeaders = self.request.get('headers').encode('utf-8')
+            encodeResponse = self.request.get('encodeResponse').encode('utf-8')
+            origPostData = self.request.get('postdata').encode('utf-8')
 
             # check method
             if origMethod != 'GET' and origMethod != 'HEAD' and origMethod != 'POST':
@@ -112,9 +112,11 @@ class MainHandler(webapp.RequestHandler):
             # check post data
             if contentLength != 0:
                 if contentLength != len(origPostData):
-                    self.myError(590, 'Invalid local proxy, Wrong length of post data.',
-                                 encodeResponse)
-                    return
+                    logging.warning('Invalid local proxy, Wrong length of post data, %d != %d.' % \
+                                    (contentLength, len(origPostData)))
+                    #self.myError(590, 'Invalid local proxy, Wrong length of post data, %d != %d.' % \
+                    #             (contentLength, len(origPostData)), encodeResponse, )
+                    #return
             else:
                 origPostData = ''
 
