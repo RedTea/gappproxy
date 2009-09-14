@@ -33,11 +33,12 @@ from google.appengine.api import urlfetch_errors
 
 
 class MainHandler(webapp.RequestHandler):
-    Software = 'GAppProxy/1.1.0 beta'
+    Software = 'GAppProxy/1.2.0 beta'
     # hop to hop header should not be forwarded
-    HtohHdrs= ['connection', 'keep-alive', 'proxy-authenticate',
-               'proxy-authorization', 'te', 'trailers',
-               'transfer-encoding', 'upgrade']
+    HtohHdrs = ['connection', 'keep-alive', 'proxy-authenticate',
+                'proxy-authorization', 'te', 'trailers',
+                'transfer-encoding', 'upgrade']
+    FbdReqHdrs = ['if-range']
 
     def myError(self, status, description, encodeResponse):
         # header
@@ -100,7 +101,8 @@ class MainHandler(webapp.RequestHandler):
                 (name, _, value) = line.partition(':')
                 name = name.strip()
                 value = value.strip()
-                if name.lower() in self.HtohHdrs:
+                nl = name.lower()
+                if nl in self.HtohHdrs or nl in self.FbdReqHdrs:
                     # don't forward
                     continue
                 newHeaders[name] = value
@@ -129,14 +131,27 @@ class MainHandler(webapp.RequestHandler):
             return
 
         # fetch, try 3 times
-        for _ in range(3):
+        for i in range(3):
             try:
-                resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, False, False)
+                resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, True, False, 10)
+                if resp.content_was_truncated:
+                    # truncated response, parse headers
+                    rangeSupport = False
+                    for header in resp.headers:
+                        if header.lower() == 'accept-ranges':
+                            if resp.headers[header].strip().lower() == 'bytes':
+                                rangeSupport = True
+                                break
+                    if rangeSupport:
+                        self.myError(592, 'Range Support.', encodeResponse)
+                        return
+                    # no rangeSupport
+                    self.myError(591, 'Fetch server error, Sorry, Google\'s limit, file size up to 1MB.', encodeResponse)
+                    return
+                # ok, not truncated
                 break
-            except urlfetch_errors.ResponseTooLargeError:
-                self.myError(591, 'Fetch server error, Sorry, Google\'s limit, file size up to 1MB.', encodeResponse)
-                return
-            except Exception:
+            except Exception, e:
+                logging.warning('urlfetch.fetch() error: %s.' % str(e))
                 continue
         else:
             self.myError(591, 'Fetch server error, The target server may be down or not exist. Another possibility: try to request the URL directly.', encodeResponse)

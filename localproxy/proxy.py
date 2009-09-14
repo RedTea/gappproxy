@@ -26,7 +26,7 @@
 #############################################################################
 
 import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
-       socket, os, common, sys, errno, base64
+       socket, os, common, sys, errno, base64, re
 try:
     import ssl
     SSLEnable = True
@@ -176,13 +176,17 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         path = urlparse.urlunparse((scm, netloc, path, params, query, ''))
 
         # create request for GAppProxy
+        if self.headers.has_key('If-Range'):
+            del self.headers['If-Range']
+        if self.headers.has_key('Range'):
+            del self.headers['Range']
         params = urllib.urlencode({'method': method, 
                                    #'path': path, 
                                    'encoded_path': base64.b64encode(path), 
                                    'headers': self.headers, 
                                    'encodeResponse': 'compress', 
                                    'postdata': postData, 
-                                   'version': '1.0.0 beta'})
+                                   'version': '1.2.0 beta'})
         # accept-encoding: identity, *;q=0
         # connection: close
         #request = urllib2.Request('http://localhost:8080/fetch.py')
@@ -217,6 +221,14 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         words = line.split()
         status = int(words[1])
         reason = ' '.join(words[2:])
+
+        # for large response
+        if status == 592 and method == 'GET':
+            self.processBigFile(path)
+            self.connection.close()
+            return
+
+        # normal response
         try:
             self.send_response(status, reason)
         except socket.error, (errNum, _): 
@@ -256,6 +268,116 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     do_GET = do_METHOD
     do_HEAD = do_METHOD
     do_POST = do_METHOD
+
+    def processBigFile(self, path):
+        curPos = 0
+        partLength = 0x80000
+        firstPart = True
+        contentLength = 0
+        textContent = True
+        lastPart = False
+
+        while True:
+            self.headers['Range'] = 'bytes=%d-%d' % (curPos, curPos + partLength - 1)
+            # create request for GAppProxy
+            params = urllib.urlencode({'method': 'GET', 
+                                       'encoded_path': base64.b64encode(path), 
+                                       'headers': self.headers, 
+                                       'encodeResponse': 'compress', 
+                                       'postdata': '', 
+                                       'version': '1.2.0 beta'})
+            # accept-encoding: identity, *;q=0
+            # connection: close
+            request = urllib2.Request(fetchServer)
+            request.add_header('Accept-Encoding', 'identity, *;q=0')
+            request.add_header('Connection', 'close')
+            # create new opener
+            if localProxy != '':
+                proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+            else:
+                proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
+            opener = urllib2.build_opener(proxy_handler)
+            # set the opener as the default opener
+            urllib2.install_opener(opener)
+            resp = urllib2.urlopen(request, params)
+
+            # parse resp
+            # for status line
+            line = resp.readline()
+            words = line.split()
+            status = int(words[1])
+            # not range response?
+            if status != 206:
+                return
+
+            # for headers
+            if firstPart:
+                self.send_response(200, 'OK')
+                while True:
+                    line = resp.readline().strip()
+                    # end header?
+                    if line == '':
+                        break
+                    # header
+                    (name, _, value) = line.partition(':')
+                    name = name.strip()
+                    value = value.strip()
+                    # get total length from Content-Range
+                    nl = name.lower()
+                    if nl == 'content-range':
+                        m = re.match(r'bytes[ \t]+[0-9]+-[0-9]+/([0-9]+)', value)
+                        if not m:
+                            # wrong Content-Range
+                            return
+                        contentLength = int(m.group(1))
+                        continue
+                    # ignore Content-Length
+                    elif nl == 'content-length':
+                        continue
+                    self.send_header(name, value)
+                    # check Content-Type
+                    if nl == 'content-type':
+                        if value.lower().find('text') == -1:
+                            # not text
+                            textContent = False
+                if contentLength == 0:
+                    # error
+                    return
+                self.send_header('Content-Length', contentLength)
+                self.end_headers()
+                firstPart = False
+            else:
+                while True:
+                    line = resp.readline().strip()
+                    # end header?
+                    if line == '':
+                        break
+                    # header
+                    (name, _, value) = line.partition(':')
+                    name = name.strip()
+                    value = value.strip()
+                    # get total length from Content-Range
+                    if name.lower() == 'content-range':
+                        m = re.match(r'bytes[ \t]+[0-9]+-([0-9]+)/([0-9]+)', value)
+                        if not m:
+                            # wrong Content-Range
+                            return
+                        if int(m.group(1)) + 1 == int(m.group(2)):
+                            lastPart = True
+                        continue
+
+            # for body
+            if textContent:
+                dat = resp.read()
+                if len(dat) > 0:
+                    self.wfile.write(zlib.decompress(dat))
+            else:
+                self.wfile.write(resp.read())
+
+            # next part?
+            if lastPart:
+                return
+            curPos += partLength
 
 class ThreadingHTTPServer(SocketServer.ThreadingMixIn, 
                           BaseHTTPServer.HTTPServer): 
