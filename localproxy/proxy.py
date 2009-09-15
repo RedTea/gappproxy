@@ -144,8 +144,10 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         elif method == 'POST':
             # get length of post data
             postDataLen = 0
-            if self.headers.has_key('Content-Length'):
-                postDataLen = int(self.headers['Content-Length'])
+            for header in self.headers:
+                if header.lower() == 'content-length':
+                    postDataLen = int(self.headers[header])
+                    break
             # exceed limit?
             if postDataLen > self.PostDataLimit:
                 self.send_error(413, 'Local proxy error, Sorry, Google\'s limit, file size up to 1MB.')
@@ -175,11 +177,17 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # create new path
         path = urlparse.urlunparse((scm, netloc, path, params, query, ''))
 
+        # remove disallowed header
+        dhs = []
+        for header in self.headers:
+            hl = header.lower()
+            if hl == 'if-range':
+                dhs.append(header)
+            elif hl == 'range':
+                dhs.append(header)
+        for dh in dhs:
+            del self.headers[dh]
         # create request for GAppProxy
-        if self.headers.has_key('If-Range'):
-            del self.headers['If-Range']
-        if self.headers.has_key('Range'):
-            del self.headers['Range']
         params = urllib.urlencode({'method': method, 
                                    #'path': path, 
                                    'encoded_path': base64.b64encode(path), 
@@ -224,7 +232,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # for large response
         if status == 592 and method == 'GET':
-            self.processBigFile(path)
+            self.processLargeResponse(path)
             self.connection.close()
             return
 
@@ -249,12 +257,16 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             (name, _, value) = line.partition(':')
             name = name.strip()
             value = value.strip()
+            # ignore Accept-Ranges
+            if name.lower() == 'accept-ranges':
+                continue
             self.send_header(name, value)
             # check Content-Type
             if name.lower() == 'content-type':
                 if value.lower().find('text') == -1:
                     # not text
                     textContent = False
+        self.send_header('Accept-Ranges', 'none')
         self.end_headers()
         # for page
         if textContent:
@@ -269,15 +281,16 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     do_HEAD = do_METHOD
     do_POST = do_METHOD
 
-    def processBigFile(self, path):
+    def processLargeResponse(self, path):
         curPos = 0
-        partLength = 0x80000
+        partLength = 0x100000 # 1m initial, at least 64k
         firstPart = True
         contentLength = 0
         textContent = True
-        lastPart = False
+        allowedFailed = 10
 
-        while True:
+        while allowedFailed > 0:
+            nextPos = 0
             self.headers['Range'] = 'bytes=%d-%d' % (curPos, curPos + partLength - 1)
             # create request for GAppProxy
             params = urllib.urlencode({'method': 'GET', 
@@ -308,7 +321,11 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             status = int(words[1])
             # not range response?
             if status != 206:
-                return
+                # reduce partLength and try again
+                if partLength > 65536:
+                    partLength /= 2
+                allowedFailed -= 1
+                continue
 
             # for headers
             if firstPart:
@@ -325,14 +342,21 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     # get total length from Content-Range
                     nl = name.lower()
                     if nl == 'content-range':
-                        m = re.match(r'bytes[ \t]+[0-9]+-[0-9]+/([0-9]+)', value)
+                        m = re.match(r'bytes[ \t]+([0-9]+)-([0-9]+)/([0-9]+)', value)
                         if not m:
-                            # wrong Content-Range
+                            # Content-Range error, fatal error
                             return
-                        contentLength = int(m.group(1))
+                        if int(m.group(1)) != curPos:
+                            # Content-Range error, fatal error
+                            return
+                        nextPos = int(m.group(2)) + 1
+                        contentLength = int(m.group(3))
                         continue
                     # ignore Content-Length
                     elif nl == 'content-length':
+                        continue
+                    # ignore Accept-Ranges
+                    elif nl == 'accept-ranges':
                         continue
                     self.send_header(name, value)
                     # check Content-Type
@@ -341,9 +365,10 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                             # not text
                             textContent = False
                 if contentLength == 0:
-                    # error
+                    # no Content-Length, fatal error
                     return
                 self.send_header('Content-Length', contentLength)
+                self.send_header('Accept-Ranges', 'none')
                 self.end_headers()
                 firstPart = False
             else:
@@ -358,12 +383,14 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                     value = value.strip()
                     # get total length from Content-Range
                     if name.lower() == 'content-range':
-                        m = re.match(r'bytes[ \t]+[0-9]+-([0-9]+)/([0-9]+)', value)
+                        m = re.match(r'bytes[ \t]+([0-9]+)-([0-9]+)/([0-9]+)', value)
                         if not m:
-                            # wrong Content-Range
+                            # Content-Range error, fatal error
                             return
-                        if int(m.group(1)) + 1 == int(m.group(2)):
-                            lastPart = True
+                        if int(m.group(1)) != curPos:
+                            # Content-Range error, fatal error
+                            return
+                        nextPos = int(m.group(2)) + 1
                         continue
 
             # for body
@@ -375,9 +402,9 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.wfile.write(resp.read())
 
             # next part?
-            if lastPart:
+            if nextPos == contentLength:
                 return
-            curPos += partLength
+            curPos = nextPos
 
 class ThreadingHTTPServer(SocketServer.ThreadingMixIn, 
                           BaseHTTPServer.HTTPServer): 

@@ -41,6 +41,7 @@ class MainHandler(webapp.RequestHandler):
     FbdReqHdrs = ['if-range']
 
     def myError(self, status, description, encodeResponse):
+        self.response.headers['Content-Type'] = 'application/octet-stream'
         # header
         self.response.out.write('HTTP/1.1 %d %s\r\n' % (status, description))
         self.response.out.write('Server: %s\r\n' % self.Software)
@@ -133,7 +134,7 @@ class MainHandler(webapp.RequestHandler):
         # fetch, try 3 times
         for i in range(3):
             try:
-                resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, True, False, 10)
+                resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, True, False)
                 if resp.content_was_truncated:
                     # truncated response, parse headers
                     rangeSupport = False
@@ -146,12 +147,31 @@ class MainHandler(webapp.RequestHandler):
                         self.myError(592, 'Range Support.', encodeResponse)
                         return
                     # no rangeSupport
-                    self.myError(591, 'Fetch server error, Sorry, Google\'s limit, file size up to 1MB.', encodeResponse)
+                    self.myError(591, 'Fetch server error, Sorry, file size up to Google\'s limit and the target server doesn\'t accept Range request.', encodeResponse)
                     return
                 # ok, not truncated
                 break
             except Exception, e:
                 logging.warning('urlfetch.fetch() error: %s.' % str(e))
+                # response is too large to fetch?
+                if i == 2 and method == urlfetch.GET and not newHeaders.has_key('Range'):
+                    # try partial response
+                    newHeaders['Range'] = 'bytes=0-65535'
+                    try:
+                        resp = urlfetch.fetch(newPath, '', urlfetch.GET, newHeaders, True, False)
+                        rangeSupport = False
+                        for header in resp.headers:
+                            if header.lower() == 'accept-ranges':
+                                if resp.headers[header].strip().lower() == 'bytes':
+                                    rangeSupport = True
+                                    break
+                        if rangeSupport:
+                            self.myError(592, 'Range Support.', encodeResponse)
+                            return
+                    except Exception, e:
+                        # really can't
+                        logging.warning('urlfetch.fetch(Range) error: %s.' % str(e))
+                        pass
                 continue
         else:
             self.myError(591, 'Fetch server error, The target server may be down or not exist. Another possibility: try to request the URL directly.', encodeResponse)
