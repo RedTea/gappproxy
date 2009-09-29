@@ -165,6 +165,13 @@ class MainHandler(webapp.RequestHandler):
                                 if resp.headers[header].strip().lower() == 'bytes':
                                     rangeSupport = True
                                     break
+                            elif header.lower() == 'content-length':
+                                if resp.headers[header].strip().lower() == '65536':
+                                    rangeSupport = True
+                                    break
+                            elif header.lower() == 'content-range':
+                                rangeSupport = True
+                                break
                         if rangeSupport:
                             self.myError(592, 'Range Support.', encodeResponse)
                             return
