@@ -36,6 +36,7 @@ except:
 # global varibles
 localProxy = common.DEF_LOCAL_PROXY
 fetchServer = common.DEF_FETCH_SERVER
+localPort = common.DEF_LISTEN_PORT
 google_proxy_or_not = {}
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -96,7 +97,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         # connect to local proxy server
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', common.DEF_LISTEN_PORT))
+        sock.connect(('127.0.0.1', localPort))
         sock.send('%s %s %s\r\n' % (method, path, ver))
 
         # forward https request
@@ -440,7 +441,7 @@ def getAvailableFetchServer():
         return ''
 
 def parseConf(confFile):
-    global localProxy, fetchServer
+    global localProxy, fetchServer, localPort
 
     # read config file
     try:
@@ -470,6 +471,8 @@ def parseConf(confFile):
                 localProxy = value
             elif name == 'fetch_server':
                 fetchServer = value
+            elif name == 'local_port':
+                localPort = int(value)
     fp.close()
 
 if __name__ == '__main__':
@@ -496,24 +499,5 @@ if __name__ == '__main__':
     print 'Local Proxy  : %s' % localProxy
     print 'Fetch Server : %s' % fetchServer
     print '--------------------------------------------'
-    httpd = ThreadingHTTPServer(('', common.DEF_LISTEN_PORT), 
-                                LocalProxyHandler)
+    httpd = ThreadingHTTPServer(('', localPort), LocalProxyHandler)
     httpd.serve_forever()
-
-    # for 'Apply' in GUI
-    #while True:
-    #    # parameters changed?
-    #    if os.path.exists(common.DEF_COMM_FILE):
-    #        # renew
-    #        localProxy = common.DEF_LOCAL_PROXY
-    #        fetchServer = common.DEF_FETCH_SERVER
-    #        parseConf(common.DEF_COMM_FILE)
-    #        os.remove(common.DEF_COMM_FILE)
-    #        if fetchServer == '':
-    #            fetchServer = getAvailableFetchServer()
-    #        if fetchServer == '':
-    #            raise common.GAppProxyError('Invalid response from load balance server.')
-    #        print 'Local Proxy  : %s' % localProxy
-    #        print 'Fetch Server : %s' % fetchServer
-    #    # do handle
-    #    httpd.handle_request()
