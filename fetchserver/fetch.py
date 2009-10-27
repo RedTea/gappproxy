@@ -29,209 +29,171 @@ import wsgiref.handlers, urlparse, StringIO, logging, base64, zlib, re
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch
 from google.appengine.api import urlfetch_errors
-# from accesslog import logAccess
-
 
 class MainHandler(webapp.RequestHandler):
-    Software = 'GAppProxy/1.2.0 beta'
+    Software = "GAppProxy/1.2.0"
     # hop to hop header should not be forwarded
-    HtohHdrs = ['connection', 'keep-alive', 'proxy-authenticate',
-                'proxy-authorization', 'te', 'trailers',
-                'transfer-encoding', 'upgrade']
-    FbdReqHdrs = ['if-range']
+    H2H_Headers = ["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade"]
+    Forbid_Headers = ["if-range"]
+    Fetch_Max = 3
 
-    def myError(self, status, description, encodeResponse):
-        self.response.headers['Content-Type'] = 'application/octet-stream'
+    def sendErrorPage(self, status, description):
+        self.response.headers["Content-Type"] = "application/octet-stream"
+        # http over http
         # header
-        self.response.out.write('HTTP/1.1 %d %s\r\n' % (status, description))
-        self.response.out.write('Server: %s\r\n' % self.Software)
-        self.response.out.write('Content-Type: text/html\r\n')
-        self.response.out.write('\r\n')
+        self.response.out.write("HTTP/1.1 %d %s\r\n" % (status, description))
+        self.response.out.write("Server: %s\r\n" % self.Software)
+        self.response.out.write("Content-Type: text/html\r\n")
+        self.response.out.write("\r\n")
         # body
-        content = '<h1>Fetch Server Error</h1><p>Error Code: %d<p>Message: %s' % (status, description)
-        if encodeResponse == 'base64':
-            self.response.out.write(base64.b64encode(content))
-        elif encodeResponse == 'compress':
-            self.response.out.write(zlib.compress(content))
-        else:
-            self.response.out.write(content)
+        content = "<h1>Fetch Server Error</h1><p>Error Code: %d<p>Message: %s" % (status, description)
+        self.response.out.write(zlib.compress(content))
 
     def post(self):
         try:
             # get post data
-            origMethod = self.request.get('method').encode('utf-8')
-            origPath = self.request.get('encoded_path').encode('utf-8')
-            if origPath != '':
-                origPath = base64.b64decode(origPath)
-            else:
-                origPath = self.request.get('path').encode('utf-8')
-            origHeaders = self.request.get('headers').encode('utf-8')
-            encodeResponse = self.request.get('encodeResponse').encode('utf-8')
-            origPostData = self.request.get('postdata').encode('utf-8')
+            orig_method = self.request.get("method").encode("utf-8")
+            orig_path = base64.b64decode(self.request.get("encoded_path").encode("utf-8"))
+            orig_headers = self.request.get("headers").encode("utf-8")
+            orig_post_data = self.request.get("postdata").encode("utf-8")
 
             # check method
-            if origMethod != 'GET' and origMethod != 'HEAD' and origMethod != 'POST':
+            if orig_method != "GET" and orig_method != "HEAD" and orig_method != "POST":
                 # forbid
-                self.myError(590, 'Invalid local proxy, Method not allowed.', encodeResponse)
+                self.sendErrorPage(590, "Invalid local proxy, Method not allowed.")
                 return
-            if origMethod == 'GET':
+            if orig_method == "GET":
                 method = urlfetch.GET
-            elif origMethod == 'HEAD':
+            elif orig_method == "HEAD":
                 method = urlfetch.HEAD
-            elif origMethod == 'POST':
+            elif orig_method == "POST":
                 method = urlfetch.POST
 
             # check path
-            (scm, netloc, path, params, query, _) = urlparse.urlparse(origPath)
-            if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
-                self.myError(590, 'Invalid local proxy, Unsupported Scheme.', encodeResponse)
+            (scm, netloc, path, params, query, _) = urlparse.urlparse(orig_path)
+            if (scm.lower() != "http" and scm.lower() != "https") or not netloc:
+                self.sendErrorPage(590, "Invalid local proxy, Unsupported Scheme.")
                 return
             # create new path
-            newPath = urlparse.urlunparse((scm, netloc, path, params, query, ''))
+            new_path = urlparse.urlunparse((scm, netloc, path, params, query, ""))
 
             # make new headers
-            newHeaders = {}
-            contentLength = 0
-            si = StringIO.StringIO(origHeaders)
+            new_headers = {}
+            content_length = 0
+            si = StringIO.StringIO(orig_headers)
             while True:
                 line = si.readline()
                 line = line.strip()
-                if line == '':
+                if line == "":
                     break
                 # parse line
-                (name, _, value) = line.partition(':')
+                (name, _, value) = line.partition(":")
                 name = name.strip()
                 value = value.strip()
                 nl = name.lower()
-                if nl in self.HtohHdrs or nl in self.FbdReqHdrs:
+                if nl in self.H2H_Headers or nl in self.Forbid_Headers:
                     # don't forward
                     continue
-                newHeaders[name] = value
-                if name.lower() == 'content-length':
-                    contentLength = int(value)
+                new_headers[name] = value
+                if name.lower() == "content-length":
+                    content_length = int(value)
             # predined header
-            newHeaders['Connection'] = 'close'
+            new_headers["Connection"] = "close"
 
             # check post data
-            if contentLength != 0:
-                if contentLength != len(origPostData):
-                    logging.warning('Invalid local proxy, Wrong length of post data, %d != %d.' % \
-                                    (contentLength, len(origPostData)))
-                    #self.myError(590, 'Invalid local proxy, Wrong length of post data, %d != %d.' % \
-                    #             (contentLength, len(origPostData)), encodeResponse, )
+            if content_length != 0:
+                if content_length != len(orig_post_data):
+                    logging.warning("Invalid local proxy, Wrong length of post data, %d!=%d." % (content_length, len(orig_post_data)))
+                    #self.sendErrorPage(590, "Invalid local proxy, Wrong length of post data, %d!=%d." % (content_length, len(orig_post_data)))
                     #return
             else:
-                origPostData = ''
-
-            if origPostData != '' and origMethod != 'POST':
-                self.myError(590, 'Invalid local proxy, Inconsistent method and data.',
-                             encodeResponse)
+                orig_post_data = ""
+            if orig_post_data != "" and orig_method != "POST":
+                self.sendErrorPage(590, "Invalid local proxy, Inconsistent method and data.")
                 return
         except Exception, e:
-            self.myError(591, 'Fetch server error, %s.' % str(e), encodeResponse)
+            self.sendErrorPage(591, "Fetch server error, %s." % str(e))
             return
 
-        # fetch, try 3 times
-        for i in range(3):
+        # fetch, try * times
+        range_request = False
+        for i in range(self.Fetch_Max):
             try:
-                resp = urlfetch.fetch(newPath, origPostData, method, newHeaders, True, False)
-                if resp.content_was_truncated:
-                    # truncated response, parse headers
-                    rangeSupport = False
-                    for header in resp.headers:
-                        if header.lower() == 'accept-ranges':
-                            if resp.headers[header].strip().lower() == 'bytes':
-                                rangeSupport = True
+                # the last time, try with Range
+                if i == self.Fetch_Max - 1 and method == urlfetch.GET and not new_headers.has_key("Range"):
+                    range_request = True
+                    new_headers["Range"] = "bytes=0-65535"
+                # fetch
+                resp = urlfetch.fetch(new_path, orig_post_data, method, new_headers, False, False)
+                # ok, got
+                if range_request:
+                    range_supported = False
+                    for h in resp.headers:
+                        if h.lower() == "accept-ranges":
+                            if resp.headers[h].strip().lower() == "bytes":
+                                range_supported = True
                                 break
-                    if rangeSupport:
-                        self.myError(592, 'Range Support.', encodeResponse)
-                        return
-                    # no rangeSupport
-                    self.myError(591, 'Fetch server error, Sorry, file size up to Google\'s limit and the target server doesn\'t accept Range request.', encodeResponse)
+                        elif h.lower() == "content-range":
+                            range_supported = True
+                            break
+                    if range_supported:
+                        self.sendErrorPage(592, "Fetch server error, Retry with range header.")
+                    else:
+                        self.sendErrorPage(591, "Fetch server error, Sorry, file size up to Google's limit and the target server doesn't accept Range request.")
                     return
-                # ok, not truncated
                 break
             except Exception, e:
-                logging.warning('urlfetch.fetch() error: %s.' % str(e))
-                # response is too large to fetch?
-                if i == 2 and method == urlfetch.GET and not newHeaders.has_key('Range'):
-                    # try partial response
-                    newHeaders['Range'] = 'bytes=0-65535'
-                    try:
-                        resp = urlfetch.fetch(newPath, '', urlfetch.GET, newHeaders, True, False)
-                        rangeSupport = False
-                        for header in resp.headers:
-                            if header.lower() == 'accept-ranges':
-                                if resp.headers[header].strip().lower() == 'bytes':
-                                    rangeSupport = True
-                                    break
-                            elif header.lower() == 'content-range':
-                                rangeSupport = True
-                                break
-                        if rangeSupport:
-                            self.myError(592, 'Range Support.', encodeResponse)
-                            return
-                    except Exception, e:
-                        # really can't
-                        logging.warning('urlfetch.fetch(Range) error: %s.' % str(e))
-                        pass
-                continue
+                logging.warning("urlfetch.fetch(%s) error: %s." % (range_request and "Range" or "", str(e)))
         else:
-            self.myError(591, 'Fetch server error, The target server may be down or not exist. Another possibility: try to request the URL directly.', encodeResponse)
+            self.sendErrorPage(591, "Fetch server error, The target server may be down or not exist. Another possibility: try to request the URL directly.")
             return
 
         # forward
-        self.response.headers['Content-Type'] = 'application/octet-stream'
+        self.response.headers["Content-Type"] = "application/octet-stream"
         # status line
-        self.response.out.write('HTTP/1.1 %d %s\r\n' % (resp.status_code, \
-                                self.response.http_status_message(resp.status_code)))
+        self.response.out.write("HTTP/1.1 %d %s\r\n" % (resp.status_code, self.response.http_status_message(resp.status_code)))
         # headers
         # default Content-Type is text
-        textContent = True
+        text_content = True
         for header in resp.headers:
-            if header.strip().lower() in self.HtohHdrs:
-                # don't forward
+            if header.strip().lower() in self.H2H_Headers:
+                # don"t forward
                 continue
             # there may have some problems on multi-cookie process in urlfetch.
-            # Set-Cookie: 'wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly, wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly,wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly
-            if header.lower() == 'set-cookie':
-                scs = resp.headers[header].split(',')
-                nsc = ''
+            # Set-Cookie: "wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly, wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly,wordpress=lovelywcm%7C1248344625%7C26c45bab991dcd0b1f3bce6ae6c78c92; expires=Thu, 23-Jul-2009 10:23:45 GMT; path=/wp-content/plugins; domain=.wordpress.com; httponly
+            if header.lower() == "set-cookie":
+                scs = resp.headers[header].split(",")
+                nsc = ""
                 for sc in scs:
-                    if nsc == '' or re.match(r'[ \t]*[0-9]', sc):
-                        nsc += sc
-                    else:
-                        self.response.out.write('%s: %s\r\n' % (header, nsc.strip()))
+                    if nsc == "":
                         nsc = sc
-                self.response.out.write('%s: %s\r\n' % (header, nsc.strip()))
+                    elif re.match(r"[ \t]*[0-9]", sc):
+                        # expires 2nd part
+                        nsc += "," + sc
+                    else:
+                        # new one
+                        self.response.out.write("%s: %s\r\n" % (header, nsc.strip()))
+                        nsc = sc
+                self.response.out.write("%s: %s\r\n" % (header, nsc.strip()))
                 continue
             # other
-            self.response.out.write('%s: %s\r\n' % (header, resp.headers[header]))
+            self.response.out.write("%s: %s\r\n" % (header, resp.headers[header]))
             # check Content-Type
-            if header.lower() == 'content-type':
-                if resp.headers[header].lower().find('text') == -1:
+            if header.lower() == "content-type":
+                if resp.headers[header].lower().find("text") == -1:
                     # not text
-                    textContent = False
-        self.response.out.write('\r\n')
-        # need encode?
-        if encodeResponse == 'base64':
-            self.response.out.write(base64.b64encode(resp.content))
-        elif encodeResponse == 'compress':
-            # only compress when Content-Type is text/xxx
-            if textContent:
-                self.response.out.write(zlib.compress(resp.content))
-            else:
-                self.response.out.write(resp.content)
+                    text_content = False
+        self.response.out.write("\r\n")
+        # only compress when Content-Type is text/xxx
+        if text_content:
+            self.response.out.write(zlib.compress(resp.content))
         else:
             self.response.out.write(resp.content)
 
-        # log
-        #logAccess(netloc, self.request.remote_addr)
-
     def get(self):
-        self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        self.response.headers["Content-Type"] = "text/html; charset=utf-8"
         self.response.out.write( \
-'''
+"""
 <html>
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -262,13 +224,11 @@ class MainHandler(webapp.RequestHandler):
         </table>
     </body>
 </html>
-''' % self.Software)
-
+""" % self.Software)
 
 def main():
-    application = webapp.WSGIApplication([('/fetch.py', MainHandler)])
+    application = webapp.WSGIApplication([("/fetch.py", MainHandler)])
     wsgiref.handlers.CGIHandler().run(application)
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

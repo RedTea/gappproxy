@@ -25,214 +25,205 @@
 #                                                                           #
 #############################################################################
 
-import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, \
-       socket, os, common, sys, errno, base64, re
+import BaseHTTPServer, SocketServer, urllib, urllib2, urlparse, zlib, socket, os, common, sys, errno, base64, re
 try:
     import ssl
-    SSLEnable = True
+    ssl_enabled = True
 except:
-    SSLEnable = False
+    ssl_enabled = False
 
 # global varibles
-localProxy = common.DEF_LOCAL_PROXY
-fetchServer = common.DEF_FETCH_SERVER
-localPort = common.DEF_LISTEN_PORT
-google_proxy_or_not = {}
+listen_port = common.DEF_LISTEN_PORT
+local_proxy = common.DEF_LOCAL_PROXY
+fetch_server = common.DEF_FETCH_SERVER
+google_proxy = {}
 
 class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     PostDataLimit = 0x100000
 
     def do_CONNECT(self):
-        if not SSLEnable:
-            self.send_error(501, 'Local proxy error, HTTPS needs Python2.6 or later.')
+        if not ssl_enabled:
+            self.send_error(501, "Local proxy error, HTTPS needs Python2.6 or later.")
             self.connection.close()
             return
 
         # for ssl proxy
-        (httpsHost, _, httpsPort) = self.path.partition(':')
-        if httpsPort != '' and httpsPort != '443':
-            self.send_error(501, 'Local proxy error, Only port 443 is allowed for https.')
+        (https_host, _, https_port) = self.path.partition(":")
+        if https_port != "" and https_port != "443":
+            self.send_error(501, "Local proxy error, Only port 443 is allowed for https.")
             self.connection.close()
             return
 
         # continue
-        self.wfile.write('HTTP/1.1 200 OK\r\n')
-        self.wfile.write('\r\n')
-        sslSock = ssl.SSLSocket(self.connection, 
-                                server_side=True, 
-                                certfile=common.DEF_CERT_FILE,
-                                keyfile=common.DEF_KEY_FILE)
+        self.wfile.write("HTTP/1.1 200 OK\r\n")
+        self.wfile.write("\r\n")
+        ssl_sock = ssl.SSLSocket(self.connection, server_side=True, certfile=common.DEF_CERT_FILE, keyfile=common.DEF_KEY_FILE)
 
         # rewrite request line, url to abs
-        firstLine = ''
+        first_line = ""
         while True:
-            chr = sslSock.read(1)
+            chr = ssl_sock.read(1)
             # EOF?
-            if chr == '':
+            if chr == "":
                 # bad request
-                sslSock.close()
+                ssl_sock.close()
                 self.connection.close()
                 return
             # newline(\r\n)?
-            if chr == '\r':
-                chr = sslSock.read(1)
-                if chr == '\n':
+            if chr == "\r":
+                chr = ssl_sock.read(1)
+                if chr == "\n":
                     # got
                     break
                 else:
                     # bad request
-                    sslSock.close()
+                    ssl_sock.close()
                     self.connection.close()
                     return
             # newline(\n)?
-            if chr == '\n':
+            if chr == "\n":
                 # got
                 break
-            firstLine += chr
-
-        # get path
-        (method, path, ver) = firstLine.split()
-        if path.startswith('/'):
-            path = 'https://%s' % httpsHost + path
+            first_line += chr
+        # got path, rewrite
+        (method, path, ver) = first_line.split()
+        if path.startswith("/"):
+            path = "https://%s" % https_host + path
 
         # connect to local proxy server
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(('127.0.0.1', localPort))
-        sock.send('%s %s %s\r\n' % (method, path, ver))
+        sock.connect(("127.0.0.1", listen_port))
+        sock.send("%s %s %s\r\n" % (method, path, ver))
 
         # forward https request
-        sslSock.settimeout(1)
+        ssl_sock.settimeout(1)
         while True:
             try:
-                data = sslSock.read(8192)
+                data = ssl_sock.read(8192)
             except ssl.SSLError, e:
-                if str(e).lower().find('timed out') == -1:
+                if str(e).lower().find("timed out") == -1:
                     # error
-                    sslSock.close()
-                    self.connection.close()
                     sock.close()
+                    ssl_sock.close()
+                    self.connection.close()
                     return
                 # timeout
                 break
-            if data != '':
+            if data != "":
                 sock.send(data)
             else:
                 # EOF
                 break
-        sslSock.setblocking(True)
+        ssl_sock.setblocking(True)
 
         # simply forward response
         while True:
             data = sock.recv(8192)
-            if data != '':
-                sslSock.write(data)
+            if data != "":
+                ssl_sock.write(data)
             else:
                 # EOF
                 break
 
         # clean
         sock.close()
-        sslSock.shutdown(socket.SHUT_WR)
-        sslSock.close()
+        ssl_sock.shutdown(socket.SHUT_WR)
+        ssl_sock.close()
         self.connection.close()
-    
+   
     def do_METHOD(self):
         # check http method and post data
         method = self.command
-        if method == 'GET' or method == 'HEAD':
+        if method == "GET" or method == "HEAD":
             # no post data
-            postDataLen = 0
-        elif method == 'POST':
+            post_data_len = 0
+        elif method == "POST":
             # get length of post data
-            postDataLen = 0
+            post_data_len = 0
             for header in self.headers:
-                if header.lower() == 'content-length':
-                    postDataLen = int(self.headers[header])
+                if header.lower() == "content-length":
+                    post_data_len = int(self.headers[header])
                     break
             # exceed limit?
-            if postDataLen > self.PostDataLimit:
-                self.send_error(413, 'Local proxy error, Sorry, Google\'s limit, file size up to 1MB.')
+            if post_data_len > self.PostDataLimit:
+                self.send_error(413, "Local proxy error, Sorry, Google's limit, file size up to 1MB.")
                 self.connection.close()
                 return
         else:
             # unsupported method
-            self.send_error(501)
+            self.send_error(501, "Local proxy error, Method not allowed.")
             self.connection.close()
             return
 
         # get post data
-        postData = ''
-        if postDataLen > 0:
-            postData = self.rfile.read(postDataLen)
-            if len(postData) != postDataLen:
+        post_data = ""
+        if post_data_len > 0:
+            post_data = self.rfile.read(post_data_len)
+            if len(post_data) != post_data_len:
                 # bad request
-                self.send_error(400)
+                self.send_error(400, "Local proxy error, Post data length error.")
                 self.connection.close()
                 return
+
         # do path check
         (scm, netloc, path, params, query, _) = urlparse.urlparse(self.path)
-        if (scm.lower() != 'http' and scm.lower() != 'https') or not netloc:
-            self.send_error(501, 'Local proxy error, Unsupported scheme(ftp for example).')
+        if (scm.lower() != "http" and scm.lower() != "https") or not netloc:
+            self.send_error(501, "Local proxy error, Unsupported scheme(ftp for example).")
             self.connection.close()
             return
         # create new path
-        path = urlparse.urlunparse((scm, netloc, path, params, query, ''))
+        path = urlparse.urlunparse((scm, netloc, path, params, query, ""))
 
         # remove disallowed header
         dhs = []
         for header in self.headers:
             hl = header.lower()
-            if hl == 'if-range':
+            if hl == "if-range":
                 dhs.append(header)
-            elif hl == 'range':
+            elif hl == "range":
                 dhs.append(header)
         for dh in dhs:
             del self.headers[dh]
         # create request for GAppProxy
-        params = urllib.urlencode({'method': method, 
-                                   #'path': path, 
-                                   'encoded_path': base64.b64encode(path), 
-                                   'headers': self.headers, 
-                                   'encodeResponse': 'compress', 
-                                   'postdata': postData, 
-                                   'version': '1.2.0 beta'})
+        params = urllib.urlencode({"method": method,
+                                   "encoded_path": base64.b64encode(path),
+                                   "headers": self.headers,
+                                   "postdata": post_data,
+                                   "version": common.VERSION})
         # accept-encoding: identity, *;q=0
         # connection: close
-        #request = urllib2.Request('http://localhost:8080/fetch.py')
-        request = urllib2.Request(fetchServer)
-        request.add_header('Accept-Encoding', 'identity, *;q=0')
-        request.add_header('Connection', 'close')
+        request = urllib2.Request(fetch_server)
+        request.add_header("Accept-Encoding", "identity, *;q=0")
+        request.add_header("Connection", "close")
         # create new opener
-        if localProxy != '':
-            proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+        if local_proxy != "":
+            proxy_handler = urllib2.ProxyHandler({"http": local_proxy})
         else:
-            proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
+            proxy_handler = urllib2.ProxyHandler(google_proxy)
         opener = urllib2.build_opener(proxy_handler)
         # set the opener as the default opener
         urllib2.install_opener(opener)
         try:
             resp = urllib2.urlopen(request, params)
-        except urllib2.HTTPError, errMsg:
-            errNum = int( str(errMsg).split(' ')[2].split(':')[0] )
-            if errNum == 404:
-                self.send_error(404, 'Local proxy error, Fetchserver not found at the URL you specified, please check it.')
-            elif errNum == 502:
-                self.send_error(502, 'Local proxy error, Invalid response from fetchserver, an occasional transmission error, or the fetchserver is too busy.')
+        except urllib2.HTTPError, e:
+            if e.code == 404:
+                self.send_error(404, "Local proxy error, Fetchserver not found at the URL you specified, please check it.")
+            elif e.code == 502:
+                self.send_error(502, "Local proxy error, Transmission error, or the fetchserver is too busy.")
             else:
-                self.send_error(errNum)
+                self.send_error(e.code)
             self.connection.close()
             return
 
         # parse resp
-        textContent = True
         # for status line
         line = resp.readline()
         words = line.split()
         status = int(words[1])
-        reason = ' '.join(words[2:])
+        reason = " ".join(words[2:])
 
         # for large response
-        if status == 592 and method == 'GET':
+        if status == 592 and method == "GET":
             self.processLargeResponse(path)
             self.connection.close()
             return
@@ -240,40 +231,42 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # normal response
         try:
             self.send_response(status, reason)
-        except socket.error, (errNum, _): 
+        except socket.error, (err, _):
             # Connection/Webpage closed before proxy return
-            if errNum == errno.EPIPE or errNum == 10053: # *nix, Windows
+            if err == errno.EPIPE or err == 10053: # *nix, Windows
                 return
             else:
                 raise
 
         # for headers
+        text_content = True
         while True:
             line = resp.readline()
             line = line.strip()
             # end header?
-            if line == '':
+            if line == "":
                 break
             # header
-            (name, _, value) = line.partition(':')
+            (name, _, value) = line.partition(":")
             name = name.strip()
             value = value.strip()
             # ignore Accept-Ranges
-            if name.lower() == 'accept-ranges':
+            if name.lower() == "accept-ranges":
                 continue
             self.send_header(name, value)
             # check Content-Type
-            if name.lower() == 'content-type':
-                if value.lower().find('text') == -1:
+            if name.lower() == "content-type":
+                if value.lower().find("text") == -1:
                     # not text
-                    textContent = False
-        self.send_header('Accept-Ranges', 'none')
+                    text_content = False
+        self.send_header("Accept-Ranges", "none")
         self.end_headers()
+
         # for page
-        if textContent:
-            dat = resp.read()
-            if len(dat) > 0:
-                self.wfile.write(zlib.decompress(dat))
+        if text_content:
+            data = resp.read()
+            if len(data) > 0:
+                self.wfile.write(zlib.decompress(data))
         else:
             self.wfile.write(resp.read())
         self.connection.close()
@@ -283,33 +276,32 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     do_POST = do_METHOD
 
     def processLargeResponse(self, path):
-        curPos = 0
-        partLength = 0x100000 # 1m initial, at least 64k
-        firstPart = True
-        contentLength = 0
-        textContent = True
-        allowedFailed = 10
+        cur_pos = 0
+        part_length = 0x100000 # 1m initial, at least 64k
+        first_part = True
+        content_length = 0
+        text_content = True
+        allowed_failed = 10
 
-        while allowedFailed > 0:
-            nextPos = 0
-            self.headers['Range'] = 'bytes=%d-%d' % (curPos, curPos + partLength - 1)
+        while allowed_failed > 0:
+            next_pos = 0
+            self.headers["Range"] = "bytes=%d-%d" % (cur_pos, cur_pos + part_length - 1)
             # create request for GAppProxy
-            params = urllib.urlencode({'method': 'GET', 
-                                       'encoded_path': base64.b64encode(path), 
-                                       'headers': self.headers, 
-                                       'encodeResponse': 'compress', 
-                                       'postdata': '', 
-                                       'version': '1.2.0 beta'})
+            params = urllib.urlencode({"method": "GET",
+                                       "encoded_path": base64.b64encode(path),
+                                       "headers": self.headers,
+                                       "postdata": "",
+                                       "version": common.VERSION})
             # accept-encoding: identity, *;q=0
             # connection: close
-            request = urllib2.Request(fetchServer)
-            request.add_header('Accept-Encoding', 'identity, *;q=0')
-            request.add_header('Connection', 'close')
+            request = urllib2.Request(fetch_server)
+            request.add_header("Accept-Encoding", "identity, *;q=0")
+            request.add_header("Connection", "close")
             # create new opener
-            if localProxy != '':
-                proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+            if local_proxy != "":
+                proxy_handler = urllib2.ProxyHandler({"http": local_proxy})
             else:
-                proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
+                proxy_handler = urllib2.ProxyHandler(google_proxy)
             opener = urllib2.build_opener(proxy_handler)
             # set the opener as the default opener
             urllib2.install_opener(opener)
@@ -322,182 +314,169 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             status = int(words[1])
             # not range response?
             if status != 206:
-                # reduce partLength and try again
-                if partLength > 65536:
-                    partLength /= 2
-                allowedFailed -= 1
+                # reduce part_length and try again
+                if part_length > 65536:
+                    part_length /= 2
+                allowed_failed -= 1
                 continue
 
             # for headers
-            if firstPart:
-                self.send_response(200, 'OK')
+            if first_part:
+                self.send_response(200, "OK")
                 while True:
                     line = resp.readline().strip()
                     # end header?
-                    if line == '':
+                    if line == "":
                         break
                     # header
-                    (name, _, value) = line.partition(':')
+                    (name, _, value) = line.partition(":")
                     name = name.strip()
                     value = value.strip()
                     # get total length from Content-Range
                     nl = name.lower()
-                    if nl == 'content-range':
-                        m = re.match(r'bytes[ \t]+([0-9]+)-([0-9]+)/([0-9]+)', value)
-                        if not m:
+                    if nl == "content-range":
+                        m = re.match(r"bytes[ \t]+([0-9]+)-([0-9]+)/([0-9]+)", value)
+                        if not m or int(m.group(1)) != cur_pos:
                             # Content-Range error, fatal error
                             return
-                        if int(m.group(1)) != curPos:
-                            # Content-Range error, fatal error
-                            return
-                        nextPos = int(m.group(2)) + 1
-                        contentLength = int(m.group(3))
+                        next_pos = int(m.group(2)) + 1
+                        content_length = int(m.group(3))
                         continue
                     # ignore Content-Length
-                    elif nl == 'content-length':
+                    elif nl == "content-length":
                         continue
                     # ignore Accept-Ranges
-                    elif nl == 'accept-ranges':
+                    elif nl == "accept-ranges":
                         continue
                     self.send_header(name, value)
                     # check Content-Type
-                    if nl == 'content-type':
-                        if value.lower().find('text') == -1:
+                    if nl == "content-type":
+                        if value.lower().find("text") == -1:
                             # not text
-                            textContent = False
-                if contentLength == 0:
+                            text_content = False
+                if content_length == 0:
                     # no Content-Length, fatal error
                     return
-                self.send_header('Content-Length', contentLength)
-                self.send_header('Accept-Ranges', 'none')
+                self.send_header("Content-Length", content_length)
+                self.send_header("Accept-Ranges", "none")
                 self.end_headers()
-                firstPart = False
+                first_part = False
             else:
                 while True:
                     line = resp.readline().strip()
                     # end header?
-                    if line == '':
+                    if line == "":
                         break
                     # header
-                    (name, _, value) = line.partition(':')
+                    (name, _, value) = line.partition(":")
                     name = name.strip()
                     value = value.strip()
                     # get total length from Content-Range
-                    if name.lower() == 'content-range':
-                        m = re.match(r'bytes[ \t]+([0-9]+)-([0-9]+)/([0-9]+)', value)
-                        if not m:
+                    if name.lower() == "content-range":
+                        m = re.match(r"bytes[ \t]+([0-9]+)-([0-9]+)/([0-9]+)", value)
+                        if not m or int(m.group(1)) != cur_pos:
                             # Content-Range error, fatal error
                             return
-                        if int(m.group(1)) != curPos:
-                            # Content-Range error, fatal error
-                            return
-                        nextPos = int(m.group(2)) + 1
+                        next_pos = int(m.group(2)) + 1
                         continue
 
             # for body
-            if textContent:
-                dat = resp.read()
-                if len(dat) > 0:
-                    self.wfile.write(zlib.decompress(dat))
+            if text_content:
+                data = resp.read()
+                if len(data) > 0:
+                    self.wfile.write(zlib.decompress(data))
             else:
                 self.wfile.write(resp.read())
 
             # next part?
-            if nextPos == contentLength:
+            if next_pos == content_length:
                 return
-            curPos = nextPos
+            cur_pos = next_pos
 
-class ThreadingHTTPServer(SocketServer.ThreadingMixIn, 
-                          BaseHTTPServer.HTTPServer): 
+class ThreadingHTTPServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
     pass
 
-def shallWeNeedDefaultProxy():
-    global google_proxy_or_not
+def shallWeNeedGoogleProxy():
+    global google_proxy
 
     # send http request directly
     request = urllib2.Request(common.LOAD_BALANCE)
     try:
         # avoid wait too long at startup, timeout argument need py2.6 or later.
-        if sys.hexversion > 0x20600f0:
+        if sys.hexversion >= 0x20600f0:
             resp = urllib2.urlopen(request, timeout=3)
         else:
             resp = urllib2.urlopen(request)
         resp.read()
     except:
-        google_proxy_or_not = {'http': common.GOOGLE_PROXY}
+        google_proxy = {"http": common.GOOGLE_PROXY}
 
 def getAvailableFetchServer():
     request = urllib2.Request(common.LOAD_BALANCE)
-    if localProxy != '':
-        proxy_handler = urllib2.ProxyHandler({'http': localProxy})
+    if local_proxy != "":
+        proxy_handler = urllib2.ProxyHandler({"http": local_proxy})
     else:
-        proxy_handler = urllib2.ProxyHandler(google_proxy_or_not)
+        proxy_handler = urllib2.ProxyHandler(google_proxy)
     opener = urllib2.build_opener(proxy_handler)
     urllib2.install_opener(opener)
     try:
         resp = urllib2.urlopen(request)
         return resp.read().strip()
     except:
-        return ''
+        return ""
 
 def parseConf(confFile):
-    global localProxy, fetchServer, localPort
+    global listen_port, local_proxy, fetch_server
 
     # read config file
     try:
-        fp = open(confFile, 'r')
+        fp = open(confFile, "r")
     except IOError:
         # use default parameters
         return
     # parse user defined parameters
     while True:
         line = fp.readline()
-        if line == '':
+        if line == "":
             # end
             break
         # parse line
         line = line.strip()
-        if line == '':
+        if line == "":
             # empty line
             continue
-        if line.startswith('#'):
+        if line.startswith("#"):
             # comments
             continue
-        (name, sep, value) = line.partition('=')
-        if sep == '=':
+        (name, sep, value) = line.partition("=")
+        if sep == "=":
             name = name.strip().lower()
             value = value.strip()
-            if name == 'local_proxy':
-                localProxy = value
-            elif name == 'fetch_server':
-                fetchServer = value
-            elif name == 'local_port':
-                localPort = int(value)
+            if name == "listen_port":
+                listen_port = int(value)
+            elif name == "local_proxy":
+                local_proxy = value
+            elif name == "fetch_server":
+                fetch_server = value
     fp.close()
 
-if __name__ == '__main__':
-    print '--------------------------------------------'
-    if SSLEnable:
-        print 'HTTP Enabled : YES'
-        print 'HTTPS Enabled: YES'
-    else:
-        print 'HTTP Enabled : YES'
-        print 'HTTPS Enabled: NO'
-
+if __name__ == "__main__":
     parseConf(common.DEF_CONF_FILE)
 
-    if localProxy == '':
-        shallWeNeedDefaultProxy()
+    if local_proxy == "":
+        shallWeNeedGoogleProxy()
 
-    if fetchServer == '':
-        fetchServer = getAvailableFetchServer()
-    if fetchServer == '':
-        raise common.GAppProxyError('Invalid response from load balance server.')
+    if fetch_server == "":
+        fetch_server = getAvailableFetchServer()
+    if fetch_server == "":
+        raise common.GAppProxyError("Invalid response from load balance server.")
 
-    # Want to know whether you are connect to fetchserver direct? uncomment it.
-    print 'Direct Fetch : %s' % ( google_proxy_or_not and 'NO' or 'YES' )
-    print 'Local Proxy  : %s' % localProxy
-    print 'Fetch Server : %s' % fetchServer
-    print '--------------------------------------------'
-    httpd = ThreadingHTTPServer(('', localPort), LocalProxyHandler)
+    print "--------------------------------------------"
+    print "HTTPS Enabled: %s" % (ssl_enabled and "YES" or "NO")
+    print "Direct Fetch : %s" % (google_proxy and "NO" or "YES")
+    print "Listen Addr  : 127.0.0.1:%d" % listen_port
+    print "Local Proxy  : %s" % local_proxy
+    print "Fetch Server : %s" % fetch_server
+    print "--------------------------------------------"
+    httpd = ThreadingHTTPServer(("127.0.0.1", listen_port), LocalProxyHandler)
     httpd.serve_forever()
