@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: fetch.py                                                          #
 #                                                                           #
-#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
+#   Copyright (C) 2008-2010 Du XiaoGang <dugang.2008@gmail.com>             #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -31,7 +31,7 @@ from google.appengine.api import urlfetch
 from google.appengine.api import urlfetch_errors
 
 class MainHandler(webapp.RequestHandler):
-    Software = "GAppProxy/1.2.0"
+    Software = "GAppProxy/2.0.0"
     # hop to hop header should not be forwarded
     H2H_Headers = ["connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade"]
     Forbid_Headers = ["if-range"]
@@ -54,8 +54,8 @@ class MainHandler(webapp.RequestHandler):
             # get post data
             orig_method = self.request.get("method").encode("utf-8")
             orig_path = base64.b64decode(self.request.get("encoded_path").encode("utf-8"))
-            orig_headers = self.request.get("headers").encode("utf-8")
-            orig_post_data = self.request.get("postdata").encode("utf-8")
+            orig_headers = base64.b64decode(self.request.get("headers").encode("utf-8"))
+            orig_post_data = base64.b64decode(self.request.get("postdata").encode("utf-8"))
 
             # check method
             if orig_method != "GET" and orig_method != "HEAD" and orig_method != "POST":

@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: proxy.py                                                          #
 #                                                                           #
-#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
+#   Copyright (C) 2008-2010 Du XiaoGang <dugang.2008@gmail.com>             #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -187,8 +187,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # create request for GAppProxy
         params = urllib.urlencode({"method": method,
                                    "encoded_path": base64.b64encode(path),
-                                   "headers": self.headers,
-                                   "postdata": post_data,
+                                   "headers": base64.b64encode(str(self.headers)),
+                                   "postdata": base64.b64encode(post_data),
                                    "version": common.VERSION})
         # accept-encoding: identity, *;q=0
         # connection: close
@@ -212,6 +212,11 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 self.send_error(502, "Local proxy error, Transmission error, or the fetchserver is too busy.")
             else:
                 self.send_error(e.code)
+            self.connection.close()
+            return
+        except urllib2.URLError, e:
+            if local_proxy == "":
+                shallWeNeedGoogleProxy()
             self.connection.close()
             return
 
@@ -241,8 +246,7 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # for headers
         text_content = True
         while True:
-            line = resp.readline()
-            line = line.strip()
+            line = resp.readline().strip()
             # end header?
             if line == "":
                 break
@@ -289,8 +293,8 @@ class LocalProxyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             # create request for GAppProxy
             params = urllib.urlencode({"method": "GET",
                                        "encoded_path": base64.b64encode(path),
-                                       "headers": self.headers,
-                                       "postdata": "",
+                                       "headers": base64.b64encode(str(self.headers)),
+                                       "postdata": base64.b64encode(""),
                                        "version": common.VERSION})
             # accept-encoding: identity, *;q=0
             # connection: close

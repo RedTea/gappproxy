@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: setup.py                                                          #
 #                                                                           #
-#   Copyright (C) 2008 Du XiaoGang <dugang@188.com>                         #
+#   Copyright (C) 2008-2010 Du XiaoGang <dugang.2008@gmail.com>             #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -27,9 +27,8 @@
 
 from distutils.core import setup
 import py2exe
-import datetime, glob
-
-now = datetime.datetime.now();
+import glob
+import common
 
 setup(
     options = {"py2exe": 
@@ -40,17 +39,13 @@ setup(
     },
 
     name = "GAppProxy",
-    version = "%d.%d.%d" % (now.year, now.month, now.day),
-    description = "HTTP Proxy. 127.0.0.1:8000",
+    version = common.VERSION,
+    description = "HTTP(S) Proxy. 127.0.0.1:8000",
 
     zipfile = None,
-    windows=['proxy.py', 'gui.pyw'],
+    console=['proxy.py'],
     
     data_files = [
-        ('images', ['images/gap.png']),
-        ('service', glob.glob('service/*')),
         ('ssl', glob.glob('ssl/*'))
     ]
 )
-
-#python -OO setup.py py2exe --dist-dir GAppProxy --include sip && del GAppProxy\w9xpopen.exe

@@ -4,7 +4,7 @@
 #                                                                           #
 #   File: common.py                                                         #
 #                                                                           #
-#   Copyright (C) 2008-2009 Du XiaoGang <dugang@188.com>                    #
+#   Copyright (C) 2008-2010 Du XiaoGang <dugang.2008@gmail.com>             #
 #                                                                           #
 #   Home: http://gappproxy.googlecode.com                                   #
 #                                                                           #
@@ -43,7 +43,7 @@ def module_path():
 
 dir = module_path()
 
-VERSION = "1.2.0"
+VERSION = "2.0.0"
 
 LOAD_BALANCE = 'http://gappproxy-center.appspot.com/available_fetchserver.py'
 GOOGLE_PROXY = 'www.google.cn:80'
