@@ -7,6 +7,3 @@ handlers:
 
 - url: /fetch.py
   script: fetch.py
-
-- url: /admin.py
-  script: admin.py
