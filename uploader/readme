@@ -1,0 +1,3 @@
+uploader.py 自 appcfg.py 修改而来。
+appengine_rpc.py 从 GAE SDK 原文件中去掉了对 dev_appserver 的支持。
+fancy_urllib.py 即 GAE SDK 中的 lib/fancy_urllib/fancy_urllib/__init__.py, 没有任何修改。
